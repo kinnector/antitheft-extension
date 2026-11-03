@@ -453,12 +453,8 @@ function notProtected(s: State, compact: boolean): HTMLElement {
   const why = h(
     "div",
     { class: "why" },
-    h("div", { class: "why-title" }, `Why antitheft, in ${s.editor}`),
-    h(
-      "div",
-      { class: "muted" },
-      "Extensions and AI agents run with the same access you have, so any of them can read your wallets and saved passwords. antitheft locks those to their own apps and tells you which extension tried.",
-    ),
+    // one line, read at a glance; the picture under it says the rest
+    h("div", { class: "why-title" }, "Stops extensions that go for your wallets"),
   );
   const sample = s.media.alertExample
     ? h(

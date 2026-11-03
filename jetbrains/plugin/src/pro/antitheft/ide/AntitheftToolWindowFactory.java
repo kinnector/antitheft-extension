@@ -341,12 +341,11 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                     // why it is here, then a real antitheft alert as a picture. Only what antitheft LOCKS is named: SSH
                     // keys, .env and cloud CLI credentials are only watched.
                     p.add(Box.createVerticalStrut(JBUI.scale(12)));
-                    JBLabel why = new JBLabel("Why antitheft, in " + s.ideName());
-                    why.setFont(JBFont.label().asBold());
+                    // one line, read at a glance; the picture under it says the rest
+                    JBLabel why = new JBLabel("Stops plugins that go for your wallets");
+                    why.setFont(JBFont.label().asBold().biggerOn(1));
                     p.add(left(why));
-                    p.add(Box.createVerticalStrut(JBUI.scale(4)));
-                    p.add(left(wrap("Plugins and AI agents run with the same access you have, so any of them can read your wallets and saved passwords. antitheft locks those to their own apps and tells you which plugin tried.")));
-                    p.add(Box.createVerticalStrut(JBUI.scale(12)));
+                    p.add(Box.createVerticalStrut(JBUI.scale(8)));
                     p.add(left(sampleAlert()));
                     p.add(Box.createVerticalStrut(JBUI.scale(12)));
                     p.add(left(wrap("The same goes for browser passwords and cookies, password managers and 2FA apps, and chat and cloud logins, and for what AI agents, the terminal and package installs run.")));

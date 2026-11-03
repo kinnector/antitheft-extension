@@ -222,7 +222,8 @@ test("not installed: almost there, one step left, what switches on; nothing else
     r.click("Get antitheft");
     assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" });
     // why it is here, then a real antitheft alert as a picture, never one rebuilt from the extension's parts
-    assert.equal(r.text(".why-title")[0], "Why antitheft, in Visual Studio Code");
+    assert.equal(r.text(".why-title")[0], "Stops extensions that go for your wallets");
+    assert.equal(r.root.querySelectorAll(".why .muted").length, 0, "one line, no paragraph");
     assert.equal(r.root.querySelector(".sample img")?.getAttribute("src"), "m/alert-example.webp");
     assert.equal(r.text(".sample figcaption")[0], "An alert from the antitheft app");
     assert.equal(r.root.querySelectorAll(".sample .sev, .sample button").length, 0);

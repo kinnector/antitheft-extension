@@ -154,7 +154,7 @@ button.stat:hover { background: var(--tint); }
 /* not installed, below the steps: why antitheft is here, then a real antitheft alert as a picture (the app's own
    card, transparent around it, so it sits on any theme), at most its own size. */
 .why { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
-.why-title { font-weight: 600; }
+.why-title { font-size: 14px; font-weight: 600; }
 .sample { margin: 0; display: flex; flex-direction: column; gap: 4px; }
 .sample img { display: block; width: 100%; max-width: 432px; height: auto; }
 .sample figcaption { font-size: 12px; }

@@ -61,8 +61,8 @@ Rules that matter:
   `GET_ANTITHEFT` address in the host, never one the webview names), Protected ("switches on by itself": the
   socket watcher and the retry notice the install, so there is no button for it), joined by one vertical
   hairline. Each step's mark is the extension's own status dot (as in "● Extension working"): ok colour done,
-  link colour for the step left, muted next; never a checkmark, a ring or a step circle. Below the steps: "Why
-  antitheft, in <editor>" (one plain paragraph: what antitheft is and why it is in the editor), then a REAL
+  link colour for the step left, muted next; never a checkmark, a ring or a step circle. Below the steps: one bold
+  line, "Stops extensions that go for your wallets" (a paragraph there was never read; rejected), then a REAL
   antitheft alert as a picture, captioned "An alert from the antitheft app": `vscode/media/alert-example.webp` /
   `jetbrains/plugin/resources/icons/alert-example.png`, the app's own `AlertNotification` rendered by
   `vscode/test/shots/popup` (same card as the README's overview.png; transparent around it, cropped to the card),
