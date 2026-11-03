@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { alertItem, eventItem, extensionRows, feed, vaultPhrase, when, type AlertEntry, type ExtInfo, type IdeEvent } from "../src/model";
-import { standingOf } from "../src/daemon/protection";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { socketRefused, standingOf } from "../src/daemon/protection";
 import { writesRunnable } from "../src/guard/core";
 
 const exts = new Map<string, ExtInfo>([
@@ -107,6 +110,21 @@ test("the standing from the socket's answer and the service registration", () =>
   assert.equal(standingOf({ enforcement_paused: true }, true).pausedBy, "user");
   assert.equal(standingOf({ enforcement_paused: true }, true, true).standing, "protected", "the dev stack's pause, in a dev build");
   assert.equal(standingOf({ enforcement_paused: false, protection_source_active: false }, true).systemLevel, false);
+  assert.equal(standingOf(null, true, false, true).standing, "no-access", "running, but this login may not use the socket yet");
+});
+
+test("a socket this process may not use reads as refused; a missing one does not", () => {
+  if (process.platform === "win32") return;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "at-sock-"));
+  const f = path.join(dir, "antitheft.sock");
+  fs.writeFileSync(f, "");
+  fs.chmodSync(f, 0o000);
+  // root may use anything: the refusal only exists for a normal user
+  if (process.getuid?.() !== 0) assert.equal(socketRefused(f), true);
+  fs.chmodSync(f, 0o600);
+  assert.equal(socketRefused(f), false);
+  assert.equal(socketRefused(path.join(dir, "missing.sock")), false);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test("which writes are a program being written", () => {

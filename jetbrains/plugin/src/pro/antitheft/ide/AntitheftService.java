@@ -44,7 +44,9 @@ import java.util.concurrent.TimeUnit;
 public final class AntitheftService implements Disposable {
     static final String OWN_ID = "pro.antitheft";
 
-    enum Standing { CHECKING, NOT_INSTALLED, NOT_RUNNING, PAUSED, PROTECTED }
+    /** NO_ACCESS: installed and running, but this login may not use the socket yet (the installer added the person to
+     *  its group, which takes effect at their next login). */
+    enum Standing { CHECKING, NOT_INSTALLED, NO_ACCESS, NOT_RUNNING, PAUSED, PROTECTED }
 
     volatile Standing standing = Standing.CHECKING;
     volatile boolean systemLevel = true;
@@ -113,7 +115,8 @@ public final class AntitheftService implements Disposable {
         Daemon.Response r = Daemon.request("GET", "/api/v1/status", null);
         JsonObject status = r != null && r.status() == 200 ? JsonParser.parseString(r.text()).getAsJsonObject() : null;
         if (status == null) {
-            standing = Dev.assumeService() || serviceRegistered() ? Standing.NOT_RUNNING : Standing.NOT_INSTALLED;
+            boolean registered = Dev.assumeService() || serviceRegistered();
+            standing = !registered ? Standing.NOT_INSTALLED : socketRefused() ? Standing.NO_ACCESS : Standing.NOT_RUNNING;
         } else {
             boolean paused = status.has("enforcement_paused") && status.get("enforcement_paused").getAsBoolean() && !Dev.pausedIsProtected();
             standing = paused ? Standing.PAUSED : Standing.PROTECTED;
@@ -139,6 +142,15 @@ public final class AntitheftService implements Disposable {
 
     private static String str(JsonObject o, String k, String fallback) {
         return o.has(k) && !o.get(k).isJsonNull() ? o.get(k).getAsString() : fallback;
+    }
+
+    /** The socket file is there but this process may not use it. On Unix `Files.isWritable` asks `access(2)`, which
+     *  checks this process's own groups, so it tells "not in the group yet" from "nothing listening". Never true on
+     *  Windows (a named pipe). */
+    static boolean socketRefused() {
+        if (Daemon.WINDOWS) return false;
+        java.nio.file.Path p = java.nio.file.Path.of(Daemon.socket());
+        return java.nio.file.Files.exists(p) && !(java.nio.file.Files.isReadable(p) && java.nio.file.Files.isWritable(p));
     }
 
     static boolean serviceRegistered() {

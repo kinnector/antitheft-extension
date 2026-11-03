@@ -255,8 +255,23 @@ test("paused and not running", () => {
   assert.deepEqual(lic.posted.at(-1), { type: "openApp", route: "/" });
   const n = render("panel", state("panel", "not-running"));
   assert.equal(n.text(".standing-title")[0], "Not running");
+  assert.deepEqual(n.text(".step-title"), ["Added to Visual Studio Code", "Install antitheft", "Start antitheft", "Protected"]);
+  assert.equal(n.root.querySelector(".step--now .step-title")?.textContent, "Start antitheft");
   n.click("Check again");
   assert.deepEqual(n.posted.at(-1), { type: "recheck" });
+  assert.equal(n.root.querySelectorAll(".cover, .what-is").length, 0, "the steps say it; no chips, no What is antitheft");
+});
+
+test("installed and running, but this login may not reach it yet: one step left, log out and back in", () => {
+  for (const surface of ["sidebar", "panel"] as const) {
+    const r = render(surface, state(surface, "no-access"));
+    assert.equal(r.text(".standing-title")[0], "Almost there");
+    assert.equal(r.text(".hero-sub")[0], "One step left: log out and back in");
+    assert.deepEqual(r.text(".step-title"), ["Added to Visual Studio Code", "Install antitheft", "Log out and back in", "Protected"]);
+    assert.equal(r.root.querySelectorAll(".step--done").length, 2);
+    assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, "Log out and back in");
+    assert.equal(r.root.querySelectorAll(".cover, .tab, .what-is").length, 0);
+  }
 });
 
 test("a broken hook shows on the standing", () => {

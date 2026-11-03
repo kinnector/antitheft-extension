@@ -1,19 +1,21 @@
 // Is antitheft here, and is it protecting? Everything this extension does waits for "protected".
 //
 //   not-installed   no antitheft service on this computer
+//   no-access       installed and running, but this login session may not use its socket yet: the installer
+//                   added the person to the socket's group, which only takes effect at their next login
 //   not-running     installed, but its service does not answer
 //   paused          the owner (or the licence) paused protection: nothing is enforced, the guard stays off
 //   protected       everything on
 //
 // "Installed" comes from the service registration, "running" from the socket answering, so a stopped
-// service never reads as "not installed".
+// service never reads as "not installed"; a socket that is there but refuses this process is "no-access".
 
 import * as fs from "fs";
 import * as cp from "child_process";
-import { request } from "./client";
+import { request, socketPath } from "./client";
 import { dev } from "../dev";
 
-export type Standing = "checking" | "not-installed" | "not-running" | "paused" | "protected";
+export type Standing = "checking" | "not-installed" | "no-access" | "not-running" | "paused" | "protected";
 
 export interface Protection {
   standing: Standing;
@@ -33,9 +35,10 @@ export interface StatusBody {
   agent_version?: string;
 }
 
-/** Pure: the standing from what the socket answered and whether the service is registered. */
-export function standingOf(status: StatusBody | null, registered: boolean, pausedIsProtected = false): Protection {
-  if (!status) return { standing: registered ? "not-running" : "not-installed", systemLevel: false };
+/** Pure: the standing from what the socket answered, whether the service is registered, and whether its socket is
+ *  there but refuses this process. */
+export function standingOf(status: StatusBody | null, registered: boolean, pausedIsProtected = false, refused = false): Protection {
+  if (!status) return { standing: refused ? "no-access" : registered ? "not-running" : "not-installed", systemLevel: false };
   const paused = !!status.enforcement_paused && !pausedIsProtected;
   return {
     standing: paused ? "paused" : "protected",
@@ -61,9 +64,22 @@ export function serviceRegistered(): Promise<boolean> {
   return Promise.resolve(false);
 }
 
+/** The socket file is there but this process may not use it (Unix: `access(2)` checks this process's own groups,
+ *  so it tells "not in the group yet" from "nothing listening"). Never true on Windows (a named pipe). */
+export function socketRefused(path = socketPath()): boolean {
+  if (process.platform === "win32") return false;
+  try {
+    fs.accessSync(path, fs.constants.R_OK | fs.constants.W_OK);
+    return false;
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    return code === "EACCES" || code === "EPERM";
+  }
+}
+
 export async function readProtection(): Promise<Protection> {
   const a = await request<StatusBody>("GET", "/api/v1/status", undefined, 3000);
   const status = a && a.status === 200 && a.body && typeof a.body === "object" ? a.body : null;
   const registered = status ? true : await serviceRegistered();
-  return standingOf(status, registered, dev.pausedIsProtected());
+  return standingOf(status, registered, dev.pausedIsProtected(), !status && registered && socketRefused());
 }

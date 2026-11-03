@@ -143,7 +143,8 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return switch (s.standing) {
                 case CHECKING -> new Look(OFFLINE, "Checking", "Looking for antitheft on this computer", muted, null);
                 case NOT_INSTALLED -> new Look(OFFLINE, "Almost there", "One step left: install antitheft", muted, null);
-                case NOT_RUNNING -> new Look(OFFLINE, "Not running", "antitheft's service is stopped", WARN, null);
+                case NO_ACCESS -> new Look(OFFLINE, "Almost there", "One step left: log out and back in", muted, null);
+                case NOT_RUNNING -> new Look(OFFLINE, "Not running", "One step left: start antitheft", WARN, null);
                 case PAUSED -> "license".equals(s.pausedBy)
                     ? new Look(PAUSED, "Watching only", "Nothing is blocked without a licence", WARN, "Get a licence")
                     : new Look(PAUSED, "Paused", "Nothing is blocked until you resume", WARN, "Resume in antitheft");
@@ -178,12 +179,13 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             chips.add(switch (s.standing) {
                 case PROTECTED -> chip("antitheft installed", OK, s.systemLevel ? "Programs a plugin starts are stopped too." : "This computer can't block at the system level.");
                 case PAUSED -> chip("antitheft paused", WARN, "license".equals(s.pausedBy) ? "Watching only: no licence on this computer." : "Nothing is blocked until you resume.");
+                case NO_ACCESS -> chip("antitheft installed", UIUtil.getContextHelpForeground(), "Running; this login may not reach it until you log out and back in.");
                 case NOT_RUNNING -> chip("antitheft not running", WARN, "antitheft is installed, but its service is stopped.");
                 case CHECKING -> chip("antitheft starting", UIUtil.getContextHelpForeground(), "Looking for antitheft on this computer.");
                 case NOT_INSTALLED -> chip("antitheft not found", UIUtil.getContextHelpForeground(), "antitheft isn't installed on this computer.");
             });
-            // before antitheft is installed the setup steps say where things stand; the chips would only repeat it
-            if (s.standing != AntitheftService.Standing.NOT_INSTALLED) {
+            // until antitheft answers, the setup steps say where things stand; the chips would only repeat it
+            if (connected || s.standing == AntitheftService.Standing.CHECKING) {
                 text.add(Box.createVerticalStrut(JBUI.scale(8)));
                 text.add(left(chips));
             }
@@ -323,21 +325,33 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             JPanel p = column();
             p.setBorder(JBUI.Borders.empty(6, 12, 12, 12));
             switch (s.standing) {
-                case NOT_RUNNING -> {
-                    p.add(left(new JBLabel("Start antitheft, and this IDE is guarded again.")));
-                    p.add(left(button("Check again", () -> com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService().submit(s::recheck))));
-                }
-                case NOT_INSTALLED -> {
-                    // a setup that is mostly done: the plugin is in, antitheft is the one step left, the IDE
-                    // switches on by itself once it runs
+                case NOT_INSTALLED, NO_ACCESS, NOT_RUNNING -> {
+                    // a setup that is mostly done, the one step left marked: install antitheft (not installed), log
+                    // out and back in (installed, this login may not reach it yet), start it (service stopped). The
+                    // IDE switches on by itself after.
                     p.add(Box.createVerticalStrut(JBUI.scale(4)));
                     // each step's mark is the status dot the chips use; one hairline joins them
                     Color muted = UIUtil.getContextHelpForeground();
+                    Color now = JBUI.CurrentTheme.Link.Foreground.ENABLED;
+                    AntitheftService.Standing st = s.standing;
                     p.add(left(step(OK, OK, "Added to " + s.ideName(), "The plugin is in and ready", false, null)));
-                    p.add(left(step(JBUI.CurrentTheme.Link.Foreground.ENABLED, JBColor.border(), "Install antitheft",
-                        "The app that keeps your wallets and saved passwords yours, on this computer", true,
-                        button("Get antitheft", () -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT)))));
+                    if (st == AntitheftService.Standing.NOT_INSTALLED) {
+                        p.add(left(step(now, JBColor.border(), "Install antitheft",
+                            "The app that keeps your wallets and saved passwords yours, on this computer", true,
+                            button("Get antitheft", () -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT)))));
+                    } else {
+                        p.add(left(step(OK, OK, "Install antitheft", st == AntitheftService.Standing.NO_ACCESS ? "Installed and running" : "Installed", false, null)));
+                    }
+                    if (st == AntitheftService.Standing.NO_ACCESS) {
+                        p.add(left(step(now, JBColor.border(), "Log out and back in",
+                            "Installing gave your account access to antitheft. It takes effect at your next login, or after a restart", true, null)));
+                    }
+                    if (st == AntitheftService.Standing.NOT_RUNNING) {
+                        p.add(left(step(now, JBColor.border(), "Start antitheft", "Its service is stopped. It starts again with your computer", true,
+                            button("Check again", () -> com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService().submit(s::recheck)))));
+                    }
                     p.add(left(step(muted, null, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
+                    if (st != AntitheftService.Standing.NOT_INSTALLED) break;
                     // what antitheft is: two short sentences and Learn more (the site), then a real antitheft alert as
                     // a picture. Only what antitheft does: never SSH keys, .env or cloud CLI credentials, which are only
                     // watched.

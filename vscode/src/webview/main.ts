@@ -243,7 +243,8 @@ function look(s: State): Look {
   const m = s.media;
   if (p.standing === "checking") return { icon: m.offline, title: "Checking", sub: "Looking for antitheft on this computer", tone: "muted" };
   if (p.standing === "not-installed") return { icon: m.offline, title: "Almost there", sub: "One step left: install antitheft", tone: "muted" };
-  if (p.standing === "not-running") return { icon: m.offline, title: "Not running", sub: "antitheft's service is stopped", tone: "warn" };
+  if (p.standing === "no-access") return { icon: m.offline, title: "Almost there", sub: "One step left: log out and back in", tone: "muted" };
+  if (p.standing === "not-running") return { icon: m.offline, title: "Not running", sub: "One step left: start antitheft", tone: "warn" };
   if (p.standing === "paused") {
     return p.pausedBy === "license"
       ? { icon: m.paused, title: "Watching only", sub: "Nothing is blocked without a licence", tone: "warn", action: "Get a licence" }
@@ -311,8 +312,8 @@ function hero(s: State): HTMLElement {
       h("div", { class: "hero-text" }, h("div", { class: "hero-title standing-title" }, l.title), h("div", { class: "hero-sub muted" }, l.sub)),
       needs ? h("span", { class: "hero-go" }, "Show", h("span", { class: "chev" }, "›")) : null,
     ),
-    // before antitheft is installed the setup steps say where things stand; the chips would only repeat it
-    s.protection.standing === "not-installed" ? null : coverage(s),
+    // until antitheft answers, the setup steps say where things stand; the chips would only repeat it
+    connected(s) || s.protection.standing === "checking" ? coverage(s) : null,
     l.action ? button(l.action, (e?: Event) => (e?.stopPropagation(), openApp("/")), "link", "external") : null,
   );
 }
@@ -436,10 +437,10 @@ function sidebar(s: State): HTMLElement {
 
 function notProtected(s: State, compact: boolean): HTMLElement {
   const p = s.protection.standing;
-  if (p === "not-running") return h("div", { class: "explain" }, h("p", {}, "Start antitheft, and this editor is guarded again"), button("Check again", () => send({ type: "recheck" }), "secondary"));
   if (p === "checking") return h("div");
-  // Not installed: a setup that is mostly done. The extension is in; antitheft is the one step left; the editor
-  // switches on by itself once it runs (the socket watcher and the retry notice it, no button needed).
+  // Until antitheft answers: a setup that is mostly done, the one step left marked. Not installed: install it.
+  // Installed but this login may not reach it yet (no-access): log out and back in. Installed, service stopped:
+  // start it. The editor switches on by itself after (the socket watcher and the retry notice it).
   const step = (state: "done" | "now" | "next", t: string, d: string, ...extra: (HTMLElement | null)[]) =>
     h(
       "li",
@@ -454,15 +455,28 @@ function notProtected(s: State, compact: boolean): HTMLElement {
       "ol",
       { class: "steps" },
       step("done", `Added to ${s.editor}`, "The extension is in and ready"),
-      step(
-        "now",
-        "Install antitheft",
-        "The app that keeps your wallets and saved passwords yours, on this computer",
-        h("div", { class: "step-actions" }, button("Get antitheft", () => send({ type: "getAntitheft" }), "primary", "external")),
-      ),
+      p === "not-installed"
+        ? step(
+            "now",
+            "Install antitheft",
+            "The app that keeps your wallets and saved passwords yours, on this computer",
+            h("div", { class: "step-actions" }, button("Get antitheft", () => send({ type: "getAntitheft" }), "primary", "external")),
+          )
+        : step("done", "Install antitheft", p === "no-access" ? "Installed and running" : "Installed"),
+      p === "no-access"
+        ? step("now", "Log out and back in", "Installing gave your account access to antitheft. It takes effect at your next login, or after a restart")
+        : null,
+      p === "not-running"
+        ? step(
+            "now",
+            "Start antitheft",
+            "Its service is stopped. It starts again with your computer",
+            h("div", { class: "step-actions" }, button("Check again", () => send({ type: "recheck" }), "secondary")),
+          )
+        : null,
       step("next", "Protected", "This editor switches on by itself once antitheft runs"),
     ),
-    whatIs(s),
+    p === "not-installed" ? whatIs(s) : null,
   );
 }
 
