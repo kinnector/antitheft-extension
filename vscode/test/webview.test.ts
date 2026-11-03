@@ -61,7 +61,7 @@ function state(surface: "sidebar" | "panel", standing: string, overrides: Record
     extensions: { attention: rows.attention.map(icon), quiet: rows.quiet.map(icon) },
     vaults,
     editor: "Visual Studio Code",
-    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", alertExample: "m/alert-example.webp" },
+    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", alertExample: "m/alert-example.webp", overview: "m/overview.webp" },
     now: 1200,
     ...overrides,
   };
@@ -221,13 +221,21 @@ test("not installed: almost there, one step left, what switches on; nothing else
     assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, "Install antitheft");
     r.click("Get antitheft");
     assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" });
-    // why it is here, then a real antitheft alert as a picture, never one rebuilt from the extension's parts
-    assert.equal(r.text(".why-title")[0], "Stops extensions that go for your wallets");
-    assert.equal(r.root.querySelectorAll(".why .muted").length, 0, "one line, no paragraph");
-    assert.equal(r.root.querySelector(".sample img")?.getAttribute("src"), "m/alert-example.webp");
-    assert.equal(r.text(".sample figcaption")[0], "An alert from the antitheft app");
-    assert.equal(r.root.querySelectorAll(".sample .sev, .sample button").length, 0);
-    assert.match(r.text(".also")[0], /browser passwords/);
+    // EXPERIMENT: four hooks under the setup, switched in a dev build; each shows only real things
+    assert.deepEqual(r.text(".variant-switch button"), ["A", "B", "C", "D"]);
+    assert.equal(r.text(".hook-b .hook-title")[0], "Stops extensions that go for your wallets", "B by default");
+    assert.equal(r.root.querySelector(".hook-b .alert-picture.arrive")?.getAttribute("src"), "m/alert-example.webp");
+    r.click("A");
+    const own = r.root.querySelectorAll(".hook-a .hook-icons img").length;
+    assert.ok(Number(r.text(".hook-figure")[0]) >= own && own > 0, "the editor's own extensions, counted, with their real icons");
+    r.click("C");
+    assert.deepEqual(r.text(".segmented button"), ["Without antitheft", "With antitheft"]);
+    assert.equal(r.root.querySelectorAll(".log-line").length, 3);
+    r.click("With antitheft");
+    assert.equal(r.root.querySelector(".hook-with .alert-picture")?.getAttribute("src"), "m/alert-example.webp");
+    r.click("D");
+    assert.equal(r.root.querySelector(".hook-d .overview-picture")?.getAttribute("src"), "m/overview.webp");
+    r.click("B");
     assert.doesNotMatch(r.root.textContent ?? "", /SSH|\.env/, "only what antitheft locks is named");
     assert.equal(r.root.querySelectorAll("h2, .soon").length, 0, "no warning headline, no coming soon");
     assert.equal(r.root.querySelectorAll(".tab, .card").length, 0, "no alerts or tabs before antitheft protects");

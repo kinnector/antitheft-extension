@@ -6,6 +6,8 @@ export {};
 
 interface VsCodeApi {
   postMessage(m: unknown): void;
+  getState?(): unknown;
+  setState?(s: unknown): void;
 }
 declare function acquireVsCodeApi(): VsCodeApi;
 const api = acquireVsCodeApi();
@@ -447,28 +449,6 @@ function notProtected(s: State, compact: boolean): HTMLElement {
       h("span", { class: "step-mark" }, h("span", { class: `dot ${state === "done" ? "ok" : state === "now" ? "now" : "muted"}` })),
       h("div", { class: "step-text" }, h("div", { class: "step-title" }, t), h("div", { class: "muted" }, d), ...extra),
     );
-  // Why it is here, then the moment it is for: a real antitheft alert, as a picture (media/alert-example.webp, the app's
-  // own AlertNotification rendered by test/shots/popup for the README's demo attack), never a rebuilt one. Only what
-  // antitheft LOCKS is named (the README's "What it protects"): SSH keys, .env and cloud CLI credentials are only watched.
-  const why = h(
-    "div",
-    { class: "why" },
-    // one line, read at a glance; the picture under it says the rest
-    h("div", { class: "why-title" }, "Stops extensions that go for your wallets"),
-  );
-  const sample = s.media.alertExample
-    ? h(
-        "figure",
-        { class: "sample" },
-        h("img", { src: s.media.alertExample, alt: "An antitheft alert: a program an editor extension started tried to read Google Chrome's passwords and was stopped" }),
-        h("figcaption", { class: "muted" }, "An alert from the antitheft app"),
-      )
-    : null;
-  const also = h(
-    "div",
-    { class: "muted also" },
-    "The same goes for browser passwords and cookies, password managers and 2FA apps, and chat and cloud logins, and for what AI agents, the terminal and package installs run.",
-  );
   return h(
     "div",
     { class: compact ? "explain setup" : "explain setup wide" },
@@ -484,10 +464,102 @@ function notProtected(s: State, compact: boolean): HTMLElement {
       ),
       step("next", "Protected", "This editor switches on by itself once antitheft runs"),
     ),
-    why,
-    sample,
-    also,
+    __DEV__ ? variantSwitch() : null,
+    hook(s),
   );
+}
+
+// ---- what catches the eye under the setup: EXPERIMENT ------------------------------------------
+// Four ways to make the screen before antitheft is installed worth a look, none of them loud. A dev build shows a
+// switch to compare them in the real editor; the owner picks one and the others go.
+//   A  your editor: how many extensions here run with your access, with their real icons
+//   B  it arrives: the real antitheft alert picture comes in once, as a notification would
+//   C  without / with: what a stealer does unnoticed, against the real alert
+//   D  the whole thing: antitheft inside the editor (the README's overview picture)
+// Only real things: the extensions are this editor's own; the pictures are the app's own alert and the README shot.
+
+type Variant = "A" | "B" | "C" | "D";
+let variant: Variant = ((api.getState?.() as { variant?: Variant } | undefined)?.variant ?? "B") as Variant;
+let compare: "without" | "with" = "without";
+
+function variantSwitch(): HTMLElement {
+  const pick = (v: Variant) => {
+    variant = v;
+    api.setState?.({ ...((api.getState?.() as object | undefined) ?? {}), variant: v });
+    render();
+  };
+  return h(
+    "div",
+    { class: "variant-switch" },
+    h("span", { class: "muted" }, "Experiment"),
+    ...(["A", "B", "C", "D"] as Variant[]).map((v) => h("button", { class: v === variant ? "on" : "", onclick: () => pick(v) }, v)),
+  );
+}
+
+function hook(s: State): HTMLElement | null {
+  const alertPicture = (cls = "") =>
+    s.media.alertExample
+      ? h("img", { class: `alert-picture ${cls}`, src: s.media.alertExample, alt: "An antitheft alert: a program an editor extension started tried to read Google Chrome's passwords and was stopped" })
+      : null;
+  if (variant === "A") {
+    const exts = userExtensions(s);
+    if (!exts.length) return null;
+    const icons = exts.map((r) => r.ext.icon).filter((x): x is string => !!x);
+    return h(
+      "section",
+      { class: "hook hook-a" },
+      h("div", { class: "hook-figure" }, String(exts.length)),
+      h("div", { class: "hook-title" }, `${exts.length === 1 ? "extension" : "extensions"} in ${s.editor} can open every file you can`),
+      h(
+        "div",
+        { class: "hook-icons" },
+        ...icons.slice(0, 10).map((src) => h("span", { class: "stack-item" }, h("img", { src, alt: "" }))),
+        exts.length > Math.min(10, icons.length) ? h("span", { class: "muted hook-more" }, `+${exts.length - Math.min(10, icons.length)}`) : null,
+      ),
+      h("div", { class: "muted" }, "Your wallets and saved passwords included. antitheft keeps those for their own apps"),
+    );
+  }
+  if (variant === "B") {
+    return h(
+      "section",
+      { class: "hook hook-b" },
+      h("div", { class: "hook-title" }, "Stops extensions that go for your wallets"),
+      alertPicture("arrive"),
+    );
+  }
+  if (variant === "C") {
+    const tab = (k: "without" | "with", label: string) =>
+      h("button", { class: compare === k ? "on" : "", onclick: () => ((compare = k), render()) }, label);
+    const log = (who: string, what: string) =>
+      h("div", { class: "log-line" }, h("span", {}, who), h("span", { class: "muted" }, "opened"), h("span", { class: "log-what" }, what));
+    return h(
+      "section",
+      { class: "hook hook-c" },
+      h("div", { class: "segmented" }, tab("without", "Without antitheft"), tab("with", "With antitheft")),
+      compare === "without"
+        ? h(
+            "div",
+            { class: "hook-without" },
+            h(
+              "div",
+              { class: "mono log" },
+              log("claude-helper", "Login Data"),
+              log("claude-helper", "Cookies"),
+              log("claude-helper", "Local State"),
+            ),
+            h("div", { class: "muted" }, "A program an extension started, reading Chrome's saved passwords. Nothing tells you"),
+          )
+        : h("div", { class: "hook-with" }, alertPicture(), h("div", { class: "muted" }, "Stopped before it read anything, and named")),
+    );
+  }
+  return s.media.overview
+    ? h(
+        "figure",
+        { class: "hook hook-d" },
+        h("img", { class: "overview-picture", src: s.media.overview, alt: "antitheft inside the editor: its alerts, and the app's own alert over them" }),
+        h("figcaption", { class: "muted" }, `antitheft in ${s.editor}, once it's on`),
+      )
+    : null;
 }
 
 // ---- panel ----------------------------------------------------------------------------------

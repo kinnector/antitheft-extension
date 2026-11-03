@@ -151,14 +151,33 @@ button.stat:hover { background: var(--tint); }
 .explain.wide h2 { font-size: 24px; font-weight: 500; }
 .explain p { margin: 0; color: var(--vscode-foreground); }
 
-/* not installed, below the steps: why antitheft is here, then a real antitheft alert as a picture (the app's own
-   card, transparent around it, so it sits on any theme), at most its own size. */
-.why { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
-.why-title { font-size: 14px; font-weight: 600; }
-.sample { margin: 0; display: flex; flex-direction: column; gap: 4px; }
-.sample img { display: block; width: 100%; max-width: 432px; height: auto; }
-.sample figcaption { font-size: 12px; }
-.also { font-size: 12px; }
+/* not installed, below the steps: what catches the eye (EXPERIMENT, variants A-D in main.ts `hook`). Quiet means:
+   the theme's own colours, one easing curve, motion at most once and never with reduced motion, nothing loops. */
+.variant-switch { display: flex; align-items: center; gap: 4px; padding: 4px 0; font-size: 12px; }
+.variant-switch button, .segmented button { border: 1px solid var(--line); background: none; color: var(--muted); border-radius: var(--radius-in); padding: 2px 8px; cursor: pointer; font: inherit; }
+.variant-switch button.on, .segmented button.on { color: var(--vscode-foreground); border-color: var(--vscode-focusBorder, var(--line)); background: var(--tint); }
+.hook { margin: 0; padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.hook-title { font-size: 14px; font-weight: 600; }
+.alert-picture, .overview-picture { display: block; width: 100%; height: auto; }
+.alert-picture { max-width: 432px; }
+.overview-picture { border: 1px solid var(--line); border-radius: var(--radius); }
+.hook figcaption { font-size: 12px; }
+/* A: the figure is the hook; the icons are the person's own extensions */
+.hook-figure { font-size: 40px; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+.hook-a .hook-title { margin-top: -4px; }
+.hook-icons { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.hook-icons .stack-item { box-shadow: none; }
+.hook-more { font-size: 12px; padding-left: 4px; }
+/* B: the alert comes in once, the way a notification lands */
+.alert-picture.arrive { animation: arrive 600ms var(--ease) 500ms both; }
+@keyframes arrive { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .alert-picture.arrive { animation: none; } }
+/* C: without / with */
+.segmented { display: inline-flex; gap: 4px; }
+.hook-without, .hook-with { display: flex; flex-direction: column; gap: 8px; }
+.log { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+.log-line { display: flex; gap: 8px; white-space: nowrap; min-width: 0; }
+.log-what { overflow: hidden; text-overflow: ellipsis; }
 
 /* not installed: a setup that is mostly done. Each step's mark is the extension's own status dot (the one in
    "● Extension working"): ok colour when done, link colour for the step left, muted for what follows; one
