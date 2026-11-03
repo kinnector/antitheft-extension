@@ -221,14 +221,16 @@ test("not installed: almost there, one step left, what switches on; nothing else
     assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, "Install antitheft");
     r.click("Get antitheft");
     assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" });
-    assert.deepEqual(r.text(".point-title"), ["Crypto wallets", "Browser logins", "Password managers", "Chats and cloud logins", "Extensions", "AI agents and installs"]);
-    // each point shows the real apps it covers, never a glyph tile
-    const icons = [...r.root.querySelectorAll(".point")].map((p) => [...p.querySelectorAll(".point-icons img")].map((i) => i.getAttribute("src")));
-    assert.deepEqual(icons[0], ["m/b/metamask.svg"]);
-    assert.deepEqual(icons[1], ["m/b/chrome.svg"]);
-    assert.deepEqual(icons[4], ["m/vscode.png"]);
-    assert.deepEqual(icons[5], ["m/c.png", "m/x.png", "m/b/npm.svg"]);
-    assert.equal(r.root.querySelectorAll(".point .glyph-tile").length, 0);
+    // why it is here, then one example alert, tagged as one, in the alerts' own parts
+    assert.equal(r.text(".why-title")[0], "Why antitheft, in Visual Studio Code");
+    assert.equal(r.text(".sample-tag")[0], "Example");
+    assert.equal(r.text(".sample .sev")[0], "Blocked");
+    assert.equal(r.text(".sample-title")[0], "Color Theme Studio tried to read your MetaMask wallet");
+    assert.equal(r.root.querySelector(".sample .target-icon")?.getAttribute("src"), "m/b/metamask.svg");
+    assert.equal(r.text(".sample .actor-icon--unknown")[0], "C", "a made-up extension has no icon: the app's dashed initial");
+    assert.equal(r.root.querySelectorAll(".sample button").length, 0, "nothing in the example can be clicked");
+    assert.match(r.text(".also")[0], /browser passwords/);
+    assert.doesNotMatch(r.root.textContent ?? "", /SSH|\.env/, "only what antitheft locks is named");
     assert.equal(r.root.querySelectorAll("h2, .soon").length, 0, "no warning headline, no coming soon");
     assert.equal(r.root.querySelectorAll(".tab, .card").length, 0, "no alerts or tabs before antitheft protects");
   }

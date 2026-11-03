@@ -338,17 +338,19 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                         "The app that keeps your wallets and saved passwords yours, on this computer", true,
                         button("Get antitheft", () -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT)))));
                     p.add(left(step(muted, null, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
+                    // why it is here, then an EXAMPLE alert, tagged as one (dashed edge), in the alerts' own words; the
+                    // plugin is made up. Only what antitheft LOCKS is named: SSH keys, .env and cloud CLI credentials
+                    // are only watched.
                     p.add(Box.createVerticalStrut(JBUI.scale(12)));
-                    p.add(left(new JBLabel("What switches on", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
+                    JBLabel why = new JBLabel("Why antitheft, in " + s.ideName());
+                    why.setFont(JBFont.label().asBold());
+                    p.add(left(why));
                     p.add(Box.createVerticalStrut(JBUI.scale(4)));
-                    // what antitheft locks, each with the real apps it covers (official colour marks, icons/brands);
-                    // only what is LOCKED: SSH keys, .env and cloud CLI credentials are only watched
-                    p.add(left(point(brands("metamask.svg", "rabby.png", "exodus.svg", "electrum.svg"), "Crypto wallets", "Wallet apps and wallet extensions open only in their own app")));
-                    p.add(left(point(brands("chrome.svg", "firefox.svg", "brave.svg"), "Browser logins", "Saved passwords, cookies and cards stay with your browser")));
-                    p.add(left(point(brands("bitwarden.svg", "1password.svg", "proton_pass.svg"), "Password managers", "Your passwords and 2FA codes open only in their own app")));
-                    p.add(left(point(brands("discord.svg", "signal.svg", "slack.svg", "dropbox.svg"), "Chats and cloud logins", "Your signed-in sessions stay with their app")));
-                    p.add(left(point(stacked(List.of(AllIcons.Nodes.Plugin)), "Plugins", "A plugin, or a program it downloads, is refused your vaults, and the alert names it")));
-                    p.add(left(point(brands("claude.png", "codex.png", "npm.svg"), "AI agents and installs", "Coding agents, the terminal, run configurations and package install scripts are held to the same rule")));
+                    p.add(left(wrap("Plugins and AI agents run with the same access you have, so any of them can read your wallets and saved passwords. antitheft locks those to their own apps and tells you which plugin tried.")));
+                    p.add(Box.createVerticalStrut(JBUI.scale(12)));
+                    p.add(left(sampleAlert()));
+                    p.add(Box.createVerticalStrut(JBUI.scale(12)));
+                    p.add(left(wrap("The same goes for browser passwords and cookies, password managers and 2FA apps, and chat and cloud logins, and for what AI agents, the terminal and package installs run.")));
                 }
                 default -> { }
             }
@@ -365,65 +367,60 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         }
 
-        /** Bundled brand marks (icons/brands) at 16 px, overlapping as the VS Code side's stack. A mark that fails to
-         *  load is left out. */
-        private static Icon brands(String... files) {
-            List<Icon> out = new ArrayList<>();
-            int size = JBUI.scale(16);
-            for (String f : files) {
-                try {
-                    String path = "/icons/brands/" + f;
-                    if (f.endsWith(".svg")) {
-                        Icon svg = IconLoader.getIcon(path, AntitheftToolWindowFactory.class);
-                        if (svg.getIconWidth() > 0) out.add(com.intellij.util.IconUtil.scale(svg, null, size / (float) svg.getIconWidth()));
-                    } else {
-                        java.net.URL url = AntitheftToolWindowFactory.class.getResource(path);
-                        if (url == null) continue;
-                        java.awt.Image img = new javax.swing.ImageIcon(url).getImage();
-                        if (img.getWidth(null) > 0) out.add(new javax.swing.ImageIcon(img.getScaledInstance(size, size, java.awt.Image.SCALE_SMOOTH)));
-                    }
-                } catch (RuntimeException e) {
-                    // a missing mark costs only its icon
-                }
+        /** MetaMask's official colour mark (icons/brands) at 16 px; null when it does not load. */
+        private static Icon metamask() {
+            try {
+                Icon svg = IconLoader.getIcon("/icons/brands/metamask.svg", AntitheftToolWindowFactory.class);
+                return svg.getIconWidth() > 0 ? com.intellij.util.IconUtil.scale(svg, null, JBUI.scale(16) / (float) svg.getIconWidth()) : null;
+            } catch (RuntimeException e) {
+                return null;
             }
-            return stacked(out);
         }
 
-        /** Icons drawn left to right, each over the last by a third, in a fixed 72 px column so titles line up. */
-        private static Icon stacked(List<Icon> icons) {
-            return new Icon() {
-                @Override
-                public void paintIcon(Component c, java.awt.Graphics g, int x, int y) {
-                    int step = JBUI.scale(11);
-                    for (int i = 0; i < icons.size(); i++) icons.get(i).paintIcon(c, g, x + i * step, y + (getIconHeight() - icons.get(i).getIconHeight()) / 2);
-                }
-
-                @Override
-                public int getIconWidth() {
-                    return JBUI.scale(72);
-                }
-
-                @Override
-                public int getIconHeight() {
-                    return JBUI.scale(16);
-                }
-            };
-        }
-
-        private static JComponent point(Icon icon, String title, String detail) {
-            JPanel row = new JPanel(new BorderLayout(JBUI.scale(8), 0));
-            row.setOpaque(false);
-            row.setBorder(JBUI.Borders.empty(3, 0));
-            JBLabel iconLabel = new JBLabel(icon);
-            iconLabel.setVerticalAlignment(JBLabel.TOP);
-            row.add(iconLabel, BorderLayout.WEST);
-            JPanel t = column();
-            JBLabel h = new JBLabel(title);
-            h.setFont(JBFont.label().asBold());
-            t.add(left(h));
-            t.add(left(new JBLabel(detail, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
-            row.add(t, BorderLayout.CENTER);
-            return row;
+        /** An EXAMPLE alert, tagged as one with a dashed edge, in the alerts' parts and words: the severity chip, the
+         *  sentence, the vault with its real icon, the plugin (made up, so the app's dashed initial), when. Nothing in
+         *  it can be clicked. */
+        private static JComponent sampleAlert() {
+            Color line = JBColor.border();
+            JPanel card = column();
+            card.setBorder(BorderFactory.createDashedBorder(line, JBUI.scale(4), JBUI.scale(3)));
+            JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
+            bar.setOpaque(false);
+            bar.setBorder(JBUI.Borders.empty(8, 12));
+            JBLabel tag = new JBLabel("Example", UIUtil.ComponentStyle.SMALL);
+            tag.setBorder(BorderFactory.createCompoundBorder(JBUI.Borders.customLine(line, 1), JBUI.Borders.empty(0, 4)));
+            bar.add(tag);
+            bar.add(new JBLabel("What an alert looks like", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER));
+            card.add(left(bar));
+            JPanel body = column();
+            body.setBorder(BorderFactory.createCompoundBorder(JBUI.Borders.customLineTop(line), JBUI.Borders.empty(12)));
+            JPanel top = new JPanel(new BorderLayout());
+            top.setOpaque(false);
+            top.add(chip("Blocked", OK, null), BorderLayout.WEST);
+            top.add(new JBLabel("just now", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER), BorderLayout.EAST);
+            body.add(left(top));
+            body.add(Box.createVerticalStrut(JBUI.scale(8)));
+            JComponent title = wrap("Color Theme Studio tried to read your MetaMask wallet");
+            title.setFont(JBFont.label().asBold());
+            body.add(left(title));
+            body.add(Box.createVerticalStrut(JBUI.scale(8)));
+            body.add(left(new JBLabel("MetaMask", metamask(), JBLabel.LEFT)));
+            body.add(Box.createVerticalStrut(JBUI.scale(8)));
+            JBLabel initial = new JBLabel("C");
+            initial.setHorizontalAlignment(JBLabel.CENTER);
+            initial.setForeground(UIUtil.getContextHelpForeground());
+            initial.setBorder(BorderFactory.createDashedBorder(line, JBUI.scale(2), JBUI.scale(2)));
+            initial.setPreferredSize(new Dimension(JBUI.scale(20), JBUI.scale(20)));
+            JPanel actor = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
+            actor.setOpaque(false);
+            actor.add(initial);
+            actor.add(new JBLabel("Color Theme Studio"));
+            body.add(left(actor));
+            body.add(Box.createVerticalStrut(JBUI.scale(8)));
+            body.add(left(new JBLabel("<html><body style='width: 240px'>Refused before anything was read. Disable or uninstall the plugin right from the alert.</body></html>", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
+            card.add(left(body));
+            card.setMaximumSize(new Dimension(JBUI.scale(420), Integer.MAX_VALUE));
+            return card;
         }
 
         /** One setup step: the status dot as its mark with the hairline down to the next step (none on the last:

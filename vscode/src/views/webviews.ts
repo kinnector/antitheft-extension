@@ -34,11 +34,8 @@ const CLEARED_KEY = "antitheft.activityClearedAt";
 /** Where "Get antitheft" leads while antitheft is not installed. */
 const GET_ANTITHEFT = "https://antitheft.pro";
 
-/** Official colour marks in media/brands (from antitheft's own brand_icons), named brand_<file> in the media. */
-const BRANDS = [
-  "metamask.svg", "rabby.png", "exodus.svg", "electrum.svg", "chrome.svg", "firefox.svg", "brave.svg", "bitwarden.svg",
-  "1password.svg", "proton_pass.svg", "discord.svg", "signal.svg", "slack.svg", "dropbox.svg", "npm.svg",
-];
+/** Official colour marks in media/brands (from antitheft's own brand icons), named brand_<file> in the media. */
+const BRANDS = ["metamask.svg"];
 const IDE_ICONS: [RegExp, string][] = [
   [/cursor/i, "cursor.png"],
   [/intellij|pycharm|webstorm|goland|clion|rider|rustrover|phpstorm|jetbrains/i, "intellij.png"],
@@ -260,7 +257,7 @@ export class Views implements vscode.Disposable, vscode.WebviewViewProvider {
       ide: u(`apps/${ideIcon}`),
       claude: u("apps/claude.png"),
       codex: u("apps/codex.png"),
-      // the apps antitheft locks, for the screen shown before it is installed
+      // the example alert on the screen shown before antitheft is installed
       ...Object.fromEntries(BRANDS.map((f) => [`brand_${f.replace(/\.\w+$/, "")}`, u(`brands/${f}`)])),
     };
   }

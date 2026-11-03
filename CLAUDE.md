@@ -61,12 +61,14 @@ Rules that matter:
   `GET_ANTITHEFT` address in the host, never one the webview names), Protected ("switches on by itself": the
   socket watcher and the retry notice the install, so there is no button for it), joined by one vertical
   hairline. Each step's mark is the extension's own status dot (as in "● Extension working"): ok colour done,
-  link colour for the step left, muted next; never a checkmark, a ring or a step circle. Then "What switches on":
-  what antitheft LOCKS (crypto wallets, browser logins, password managers and 2FA, chats and cloud logins), then
-  extensions and AI agents/installs, each with an overlapping stack of the real apps it covers: official colour
-  marks copied from antitheft's `support/brand_icons` into `vscode/media/brands` and
-  `jetbrains/plugin/resources/icons/brands` (rendered on dark and light before use), never glyph tiles. Never list
-  what is only watched (SSH keys, `.env`, cloud CLI credentials). No fear headline, no "coming soon".
+  link colour for the step left, muted next; never a checkmark, a ring or a step circle. Below the steps: "Why
+  antitheft, in <editor>" (one plain paragraph: what antitheft is and why it is in the editor), then one EXAMPLE
+  alert, tagged "Example" with a dashed edge so it never reads as a real one, built from the alerts' own parts and
+  words (Blocked, "Color Theme Studio tried to read your MetaMask wallet", MetaMask's real mark from
+  `media/brands` / `icons/brands`, the app's dashed initial for the made-up extension, nothing clickable), then one
+  line naming the other locked kinds. The made-up extension is named after no real one. Never name what is only
+  watched (SSH keys, `.env`, cloud CLI credentials). Tried and rejected: three glyph-tile points, and rows of
+  brand-icon stacks per category. No fear headline, no "coming soon".
 - **Activity can be cleared** (Activity tab, the sidebar's Recent): a time (`antitheft.activityClearedAt`), not a
   deletion; what still needs you stays on Alerts until it is reviewed.
 
