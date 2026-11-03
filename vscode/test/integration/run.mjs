@@ -77,6 +77,26 @@ if (process.platform === "win32") {
   } catch {
     editor.kill();
   }
+  // wait for the editor's process group to be gone before the profile is removed: on macOS VS Code and Cursor take
+  // several seconds to quit and, still running, recreate the profile folder after it was deleted
+  const alive = () => {
+    try {
+      process.kill(-editor.pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const quitBy = Date.now() + 20000;
+  while (alive() && Date.now() < quitBy) await new Promise((r) => setTimeout(r, 500));
+  if (alive()) {
+    console.log("the editor did not quit within 20 s: killing it");
+    try {
+      process.kill(-editor.pid, "SIGKILL");
+    } catch {
+      /* gone meanwhile */
+    }
+  }
 }
 daemon.kill();
 await new Promise((r) => setTimeout(r, 3000));

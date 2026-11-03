@@ -113,7 +113,7 @@ if (!has(/^status bar "\d+ alerts?"/)) failures.push("the status bar does not co
 if (has(/^label "antitheft" \+icon/)) failures.push("the antitheft brand is repeated inside the tool window");
 if (has(/^emblem /)) failures.push("the standing is a status row now, not an animated emblem");
 if (has(/^label "Guard/i)) failures.push("the guard's own health is listed as activity");
-if (!has(/^label "●&nbsp;Plugin working"/) || !has(/^label "●&nbsp;antitheft installed"/)) failures.push("the status does not say the plugin works and antitheft is installed");
+if (!has(/^label "●&nbsp;Plugin working"/) || !has(/^label "●&nbsp;Antitheft installed"/)) failures.push("the status does not say the plugin works and antitheft is installed");
 if (!has(/^button "Mark reviewed"/)) failures.push("an alert cannot be marked reviewed");
 if (!has(/^button "Clear"/)) failures.push("the activity cannot be cleared");
 if (!has(/^label "●&nbsp;Blocked"/)) failures.push("the severity is not the app's dot and word");
