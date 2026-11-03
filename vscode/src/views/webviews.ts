@@ -257,7 +257,6 @@ export class Views implements vscode.Disposable, vscode.WebviewViewProvider {
       codex: u("apps/codex.png"),
       // a real antitheft alert, pictured on the screen shown before antitheft is installed
       alertExample: u("alert-example.webp"),
-      overview: u("overview.webp"),
     };
   }
 

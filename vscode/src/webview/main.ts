@@ -470,96 +470,66 @@ function notProtected(s: State, compact: boolean): HTMLElement {
 }
 
 // ---- what catches the eye under the setup: EXPERIMENT ------------------------------------------
-// Four ways to make the screen before antitheft is installed worth a look, none of them loud. A dev build shows a
-// switch to compare them in the real editor; the owner picks one and the others go.
-//   A  your editor: how many extensions here run with your access, with their real icons
-//   B  it arrives: the real antitheft alert picture comes in once, as a notification would
-//   C  without / with: what a stealer does unnoticed, against the real alert
-//   D  the whole thing: antitheft inside the editor (the README's overview picture)
-// Only real things: the extensions are this editor's own; the pictures are the app's own alert and the README shot.
+// The real antitheft alert picture lands once, as a notification would (chosen). What is still being tried is the
+// line that goes with it; a dev build shows a switch to compare four ways of saying it in the real editor:
+//   1  two beats: a quiet line before the card, the answer fades in after it lands
+//   2  a code comment, in the editor's own code font
+//   3  no title: a notification header ("● now · antitheft"), the card is the message
+//   4  a question, large and light; the card is the answer
+// The count is this editor's own extensions (none named). Nothing loops; reduced motion shows it all at once.
 
-type Variant = "A" | "B" | "C" | "D";
-let variant: Variant = ((api.getState?.() as { variant?: Variant } | undefined)?.variant ?? "B") as Variant;
-let compare: "without" | "with" = "without";
+type Variant = "1" | "2" | "3" | "4";
+const VARIANTS: Variant[] = ["1", "2", "3", "4"];
+const saved = (api.getState?.() as { title?: Variant } | undefined)?.title;
+let variant: Variant = saved && VARIANTS.includes(saved) ? saved : "1";
 
 function variantSwitch(): HTMLElement {
   const pick = (v: Variant) => {
     variant = v;
-    api.setState?.({ ...((api.getState?.() as object | undefined) ?? {}), variant: v });
+    api.setState?.({ ...((api.getState?.() as object | undefined) ?? {}), title: v });
     render();
   };
   return h(
     "div",
     { class: "variant-switch" },
-    h("span", { class: "muted" }, "Experiment"),
-    ...(["A", "B", "C", "D"] as Variant[]).map((v) => h("button", { class: v === variant ? "on" : "", onclick: () => pick(v) }, v)),
+    h("span", { class: "muted" }, "Title"),
+    ...VARIANTS.map((v) => h("button", { class: v === variant ? "on" : "", onclick: () => pick(v) }, v)),
   );
 }
 
 function hook(s: State): HTMLElement | null {
-  const alertPicture = (cls = "") =>
-    s.media.alertExample
-      ? h("img", { class: `alert-picture ${cls}`, src: s.media.alertExample, alt: "An antitheft alert: a program an editor extension started tried to read Google Chrome's passwords and was stopped" })
-      : null;
-  if (variant === "A") {
-    const exts = userExtensions(s);
-    if (!exts.length) return null;
-    const icons = exts.map((r) => r.ext.icon).filter((x): x is string => !!x);
+  if (!s.media.alertExample) return null;
+  const n = userExtensions(s).length;
+  const yours = n > 1 ? `one of your ${n} extensions` : "an extension";
+  const picture = h("img", {
+    class: "alert-picture arrive",
+    src: s.media.alertExample,
+    alt: "An antitheft alert: a program an editor extension started tried to read Google Chrome's passwords and was stopped",
+  });
+  if (variant === "1")
     return h(
       "section",
-      { class: "hook hook-a" },
-      h("div", { class: "hook-figure" }, String(exts.length)),
-      h("div", { class: "hook-title" }, `${exts.length === 1 ? "extension" : "extensions"} in ${s.editor} can open every file you can`),
-      h(
-        "div",
-        { class: "hook-icons" },
-        ...icons.slice(0, 10).map((src) => h("span", { class: "stack-item" }, h("img", { src, alt: "" }))),
-        exts.length > Math.min(10, icons.length) ? h("span", { class: "muted hook-more" }, `+${exts.length - Math.min(10, icons.length)}`) : null,
-      ),
-      h("div", { class: "muted" }, "Your wallets and saved passwords included. antitheft keeps those for their own apps"),
+      { class: "hook hook-1" },
+      h("div", { class: "beat" }, `Say ${yours} goes rogue.`),
+      picture,
+      h("div", { class: "beat beat-after" }, "antitheft stops it, and tells you which one."),
     );
+  if (variant === "2") {
+    // short enough to type on one line in a narrow sidebar; --n (set through the CSSOM, which the webview's CSP
+    // allows where a style attribute is not) is how many characters the typing steps through
+    const text = n > 1 ? `// ${n} extensions. one day:` : "// an extension. one day:";
+    const comment = h("div", { class: "code-comment" }, text);
+    comment.style.setProperty("--n", String(text.length));
+    return h("section", { class: "hook hook-2" }, comment, picture);
   }
-  if (variant === "B") {
+  if (variant === "3")
     return h(
       "section",
-      { class: "hook hook-b" },
-      h("div", { class: "hook-title" }, "Stops extensions that go for your wallets"),
-      alertPicture("arrive"),
+      { class: "hook hook-3" },
+      h("div", { class: "toast-head" }, h("span", { class: "dot now" }), h("span", {}, "now"), h("span", { class: "muted" }, "·"), h("span", { class: "muted" }, "antitheft")),
+      picture,
     );
-  }
-  if (variant === "C") {
-    const tab = (k: "without" | "with", label: string) =>
-      h("button", { class: compare === k ? "on" : "", onclick: () => ((compare = k), render()) }, label);
-    const log = (who: string, what: string) =>
-      h("div", { class: "log-line" }, h("span", {}, who), h("span", { class: "muted" }, "opened"), h("span", { class: "log-what" }, what));
-    return h(
-      "section",
-      { class: "hook hook-c" },
-      h("div", { class: "segmented" }, tab("without", "Without antitheft"), tab("with", "With antitheft")),
-      compare === "without"
-        ? h(
-            "div",
-            { class: "hook-without" },
-            h(
-              "div",
-              { class: "mono log" },
-              log("claude-helper", "Login Data"),
-              log("claude-helper", "Cookies"),
-              log("claude-helper", "Local State"),
-            ),
-            h("div", { class: "muted" }, "A program an extension started, reading Chrome's saved passwords. Nothing tells you"),
-          )
-        : h("div", { class: "hook-with" }, alertPicture(), h("div", { class: "muted" }, "Stopped before it read anything, and named")),
-    );
-  }
-  return s.media.overview
-    ? h(
-        "figure",
-        { class: "hook hook-d" },
-        h("img", { class: "overview-picture", src: s.media.overview, alt: "antitheft inside the editor: its alerts, and the app's own alert over them" }),
-        h("figcaption", { class: "muted" }, `antitheft in ${s.editor}, once it's on`),
-      )
-    : null;
+  return h("section", { class: "hook hook-4" }, h("div", { class: "question" }, `What if ${yours} goes rogue?`), picture);
 }
 
 // ---- panel ----------------------------------------------------------------------------------
