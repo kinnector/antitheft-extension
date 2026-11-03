@@ -2,7 +2,7 @@
   "name": "antitheft",
   "displayName": "Antitheft",
   "description": "Stop infostealers in extensions, AI agents and the programs they start from stealing your wallets and passwords, and see who opens your secrets. Works with the Antitheft app.",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "publisher": "kinnector",
   "license": "SEE LICENSE IN LICENSE.md",
   "homepage": "https://antitheft.pro",

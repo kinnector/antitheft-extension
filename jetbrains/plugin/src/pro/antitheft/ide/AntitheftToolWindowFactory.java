@@ -338,18 +338,22 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                         "The app that keeps your wallets and saved passwords yours, on this computer", true,
                         button("Get antitheft", () -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT)))));
                     p.add(left(step(muted, null, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
-                    // what antitheft is: three things, each in a boxed IDE icon (TRIAL; the glass icons stay in icons/glass),
-                    // then a real antitheft alert as a picture. Only what antitheft does: never SSH keys, .env or
-                    // cloud CLI credentials, which are only watched.
+                    // what antitheft is: two short sentences and Learn more (the site), then a real antitheft alert as
+                    // a picture. Only what antitheft does: never SSH keys, .env or cloud CLI credentials, which are only
+                    // watched.
                     p.add(Box.createVerticalStrut(JBUI.scale(16)));
                     JBLabel what = new JBLabel("What is antitheft?");
                     what.setFont(JBFont.label().asBold().biggerOn(2));
                     p.add(left(what));
                     p.add(Box.createVerticalStrut(JBUI.scale(8)));
-                    p.add(left(thing(AllIcons.Ide.Readonly, "Locks your wallets and passwords", "Only their own apps can open them")));
-                    p.add(left(thing(AllIcons.Nodes.Plugin, "Stops plugins that go for them", "Packages, AI agents and what they run too")));
-                    p.add(left(thing(AllIcons.Actions.Suspend, "Catches what tries to stay", "Startup entries, services and cron jobs")));
-                    p.add(Box.createVerticalStrut(JBUI.scale(8)));
+                    JComponent line = wrap("Your wallets and passwords open only in their own apps. Anything else that tries, a plugin included, is stopped and named.");
+                    line.setForeground(UIUtil.getContextHelpForeground());
+                    p.add(left(line));
+                    p.add(Box.createVerticalStrut(JBUI.scale(4)));
+                    com.intellij.ui.HyperlinkLabel more = new com.intellij.ui.HyperlinkLabel("Learn more");
+                    more.addHyperlinkListener(e -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT));
+                    p.add(left(more));
+                    p.add(Box.createVerticalStrut(JBUI.scale(12)));
                     p.add(left(sampleAlert()));
                 }
                 default -> { }
@@ -383,43 +387,6 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 }
             }
             return p;
-        }
-
-        /** One thing antitheft does: the IDE's own icon in a boxed tile (32 px, rounded, the hover tint), a title and
-         *  one line. TRIAL against the glass icons (icons/glass is kept). */
-        private static JComponent thing(Icon icon, String title, String detail) {
-            JPanel row = new JPanel(new BorderLayout(JBUI.scale(12), 0));
-            row.setOpaque(false);
-            row.setBorder(JBUI.Borders.empty(4, 0));
-            int box = JBUI.scale(32);
-            JComponent mark = new JComponent() {
-                @Override
-                protected void paintComponent(java.awt.Graphics g) {
-                    java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
-                    g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(JBColor.namedColor("ActionButton.hoverBackground", new JBColor(0xDFE1E5, 0x43454A)));
-                    int r = JBUI.scale(4);
-                    g2.fillRoundRect(0, 0, box, box, r * 2, r * 2);
-                    icon.paintIcon(this, g2, (box - icon.getIconWidth()) / 2, (box - icon.getIconHeight()) / 2);
-                    g2.dispose();
-                }
-            };
-            mark.setPreferredSize(new Dimension(box, box));
-            JPanel west = new JPanel(new java.awt.GridBagLayout());
-            west.setOpaque(false);
-            west.add(mark);
-            row.add(west, BorderLayout.WEST);
-            JPanel t = column();
-            t.add(left(new JBLabel(title)));
-            t.add(left(new JBLabel(detail, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
-            JPanel center = new JPanel(new java.awt.GridBagLayout());
-            center.setOpaque(false);
-            // left-aligned, centred on the icon vertically
-            center.add(t, new java.awt.GridBagConstraints(0, 0, 1, 1, 1.0, 1.0, java.awt.GridBagConstraints.WEST,
-                java.awt.GridBagConstraints.NONE, new java.awt.Insets(0, 0, 0, 0), 0, 0));
-            row.add(center, BorderLayout.CENTER);
-            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
-            return row;
         }
 
         /** One setup step: the status dot as its mark with the hairline down to the next step (none on the last:

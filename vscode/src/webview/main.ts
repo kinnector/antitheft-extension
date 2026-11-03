@@ -467,10 +467,9 @@ function notProtected(s: State, compact: boolean): HTMLElement {
 }
 
 // ---- under the setup: what antitheft is, then a real alert ------------------------------------
-// Three things antitheft does, each with antitheft's own glass icon (the landing's: media/glass, from
-// kinnector.dev/antitheft/img/app), then the app's real alert card landing once (media/alert-example.webp). Only
-// what antitheft does (protection-claims): locked vaults, refused programs, persistence refused or shown; never what
-// is only watched (SSH keys, .env, cloud CLI credentials).
+// "What is antitheft?", two short sentences and Learn more (the site, opened by the host), then the app's real alert
+// card landing once (media/alert-example.webp). Only what antitheft does (protection-claims): locked vaults, refused
+// programs; never what is only watched (SSH keys, .env, cloud CLI credentials).
 
 /** The alert card lands on the first draw of this view only; a redraw (a new state) shows it in place. */
 let landed = false;
@@ -479,21 +478,16 @@ function whatIs(s: State): HTMLElement {
   const m = s.media;
   const arrive = !landed;
   landed = true;
-  // each thing in the extension's own boxed glyph tile (TRIAL against the glass icons: media/glass is kept)
-  const thing = (glyphName: string, title: string, line: string) =>
-    h(
-      "div",
-      { class: "thing" },
-      tile(null, glyphName),
-      h("div", { class: "thing-text" }, h("div", { class: "thing-title" }, title), h("div", { class: "muted" }, line)),
-    );
   return h(
     "section",
     { class: "what-is" },
     h("h2", { class: "what-is-title" }, "What is antitheft?"),
-    thing("lock", "Locks your wallets and passwords", "Only their own apps can open them"),
-    thing("puzzle", "Stops extensions that go for them", "Packages, AI agents and what they run too"),
-    thing("stop", "Catches what tries to stay", "Startup entries, services and cron jobs"),
+    h(
+      "p",
+      { class: "what-is-line" },
+      "Your wallets and passwords open only in their own apps. Anything else that tries, an extension included, is stopped and named.",
+    ),
+    h("div", { class: "what-is-more" }, button("Learn more", () => send({ type: "getAntitheft" }), "link", "external")),
     m.alertExample
       ? h("img", {
           class: arrive ? "alert-picture arrive" : "alert-picture",

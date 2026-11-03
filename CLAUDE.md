@@ -62,16 +62,15 @@ Rules that matter:
   socket watcher and the retry notice the install, so there is no button for it), joined by one vertical
   hairline. Each step's mark is the extension's own status dot (as in "● Extension working"): ok colour done,
   link colour for the step left, muted next; never a checkmark, a ring or a step circle. Below the steps: "What
-  is antitheft?" and the three most important things it does, each with antitheft's own glass icon (the landing's
-  `kinnector.dev/antitheft/img/app/*-glass.png`, small copies in `vscode/media/glass` /
-  `jetbrains/plugin/resources/icons/glass`): keys = locks your wallets and passwords, npm cube in chains = stops
-  extensions that go for them, anchor = catches what tries to stay. Then a REAL antitheft alert as a picture
+  is antitheft?", two short sentences ("Your wallets and passwords open only in their own apps. Anything else that
+  tries, an extension included, is stopped and named.") and Learn more (the site, `GET_ANTITHEFT`, opened by the
+  host). Then a REAL antitheft alert as a picture
   (`vscode/media/alert-example.webp` / `jetbrains/plugin/resources/icons/alert-example.png`, the app's own
   `AlertNotification` rendered by `vscode/test/shots/popup`, cropped to the card) that lands once per view, never
   with reduced motion. Never name what is only watched (SSH keys, `.env`, cloud CLI credentials). Tried and
-  rejected: glyph-tile points, rows of brand-icon stacks, an alert rebuilt from the extension's own parts, a
-  paragraph (never read), a lone bold line, and title tricks (two beats, a typed code comment, a notification
-  header, a question). No fear headline, no "coming soon".
+  rejected: glyph-tile points, three things with glass or boxed icons, rows of brand-icon stacks, an alert
+  rebuilt from the extension's own parts, a long paragraph (never read), a lone bold line, and title tricks (two
+  beats, a typed code comment, a notification header, a question). No fear headline, no "coming soon".
 - **Activity can be cleared** (Activity tab, the sidebar's Recent): a time (`antitheft.activityClearedAt`), not a
   deletion; what still needs you stays on Alerts until it is reviewed.
 

@@ -151,15 +151,12 @@ button.stat:hover { background: var(--tint); }
 .explain.wide h2 { font-size: 24px; font-weight: 500; }
 .explain p { margin: 0; color: var(--vscode-foreground); }
 
-/* not installed, below the steps: "What is antitheft?", three things with antitheft's own glass icons, then the
-   app's real alert card landing once (never again on a redraw of the same view, never with reduced motion). */
-.what-is { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
+/* not installed, below the steps: "What is antitheft?", two short sentences and Learn more, then the app's real
+   alert card landing once (never again on a redraw of the same view, never with reduced motion). */
+.what-is { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; }
 .what-is .what-is-title { margin: 0; font-size: 16px; font-weight: 600; }
-.thing { display: flex; align-items: center; gap: 12px; }
-.thing-icon { width: 44px; height: 44px; flex: none; object-fit: contain; }
-.thing-text { min-width: 0; display: flex; flex-direction: column; }
-.thing-title { font-weight: 500; }
-.thing-text .muted { font-size: 12px; }
+.explain .what-is-line { margin: 0; color: var(--muted); }
+.what-is-more .btn.link { padding: 0; height: auto; }
 .alert-picture { display: block; width: 100%; max-width: 432px; height: auto; margin-top: 4px; }
 .alert-picture.arrive { animation: arrive 600ms var(--ease) 500ms both; }
 @keyframes arrive { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }

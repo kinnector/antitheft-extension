@@ -61,7 +61,7 @@ function state(surface: "sidebar" | "panel", standing: string, overrides: Record
     extensions: { attention: rows.attention.map(icon), quiet: rows.quiet.map(icon) },
     vaults,
     editor: "Visual Studio Code",
-    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", alertExample: "m/alert-example.webp", glassKeys: "m/g/keys.webp", glassCube: "m/g/npm-cube.webp", glassAnchor: "m/g/anchor.webp" },
+    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", alertExample: "m/alert-example.webp" },
     now: 1200,
     ...overrides,
   };
@@ -221,10 +221,12 @@ test("not installed: almost there, one step left, what switches on; nothing else
     assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, "Install antitheft");
     r.click("Get antitheft");
     assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" });
-    // what antitheft is: three things with antitheft's own glass icons, then the real alert card landing
+    // what antitheft is: two short sentences and Learn more, then the real alert card landing
     assert.equal(r.text(".what-is-title")[0], "What is antitheft?");
-    assert.deepEqual(r.text(".thing-title"), ["Locks your wallets and passwords", "Stops extensions that go for them", "Catches what tries to stay"]);
-    assert.equal(r.root.querySelectorAll(".thing .glyph-tile").length, 3, "each thing in the boxed glyph tile");
+    assert.match(r.text(".what-is-line")[0], /^Your wallets and passwords open only in their own apps\./);
+    r.click("Learn more");
+    assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" }, "Learn more opens the site");
+    assert.equal(r.root.querySelectorAll(".thing").length, 0);
     assert.equal(r.root.querySelector(".what-is .alert-picture")?.getAttribute("src"), "m/alert-example.webp");
     assert.doesNotMatch(r.root.textContent ?? "", /SSH|\.env/, "only what antitheft locks is named");
     assert.equal(r.root.querySelectorAll(".soon, .variant-switch").length, 0, "no coming soon, no experiment switch");
