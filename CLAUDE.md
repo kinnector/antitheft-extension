@@ -60,7 +60,8 @@ Rules that matter:
 
 README screenshots: `vscode/test/shots/run.mjs` (a demo daemon with made-up data, a lookalike "Claude Code
 Assistant" as the thief, real extensions as manifest-only stubs, Dark Modern at 2x on Xvfb, cropped to the window)
-writes `docs/screenshots/*.png`. The extension's README links them by their raw.githubusercontent.com address: an
+writes `docs/screenshots/*.png`; `overview.png` is alerts.png with the app's own alert card over it, rendered by
+`vscode/test/shots/popup/` (its header says how). The extension's README links them by their raw.githubusercontent.com address: an
 editor's Details page shows only images from the web, never a file from the extension's folder or an inlined one.
 
 Tests: `cd vscode && npm test` (unit tests and the guard end to end in a child Node process).

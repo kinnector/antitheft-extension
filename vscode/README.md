@@ -10,7 +10,7 @@ away. Your editor does not stop it, and it does not tell you what did it.
 Antitheft does both. It works with the [Antitheft app](https://antitheft.pro), which locks your vaults on the
 computer itself, and this extension brings that protection inside the editor.
 
-![A fake "Claude Code Assistant" extension is refused a MetaMask wallet, and the program it dropped is stopped going for Trust Wallet and Chrome's saved passwords](https://raw.githubusercontent.com/kinnector/antitheft-extension/main/docs/screenshots/alerts.png)
+![A fake "Claude Code Assistant" extension is refused a MetaMask wallet, and the program it dropped is stopped going for Trust Wallet and Chrome's saved passwords; the Antitheft app's alert pops up over the editor](https://raw.githubusercontent.com/kinnector/antitheft-extension/main/docs/screenshots/overview.png)
 
 ## What it does
 

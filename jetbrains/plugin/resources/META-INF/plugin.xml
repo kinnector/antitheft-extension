@@ -1,7 +1,7 @@
 <idea-plugin>
   <id>pro.antitheft</id>
   <name>Antitheft</name>
-  <version>0.1.14</version>
+  <version>0.1.15</version>
   <vendor url="https://antitheft.pro">kinnector</vendor>
   <description><![CDATA[
     <p><b>Stop infostealers in plugins, AI agents and the programs they start from stealing your wallets and passwords, and see who opens your secrets.</b></p>
