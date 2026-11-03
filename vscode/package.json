@@ -1,7 +1,7 @@
 {
   "name": "antitheft",
   "displayName": "Antitheft",
-  "description": "Stops malicious extensions, AI agents and the programs they start from stealing your crypto wallets, browser passwords and password managers, and names the one that tried. Works with the Antitheft app.",
+  "description": "Stop infostealers in extensions, AI agents and the programs they start from stealing your wallets and passwords, and see who opens your secrets. Works with the Antitheft app.",
   "version": "0.1.14",
   "publisher": "kinnector",
   "license": "SEE LICENSE IN LICENSE.md",

@@ -1,6 +1,6 @@
 # Antitheft
 
-**Stop malicious extensions, AI agents and the programs they start from stealing your crypto wallets and passwords.**
+**Stop infostealers in extensions, AI agents and the programs they start from stealing your wallets and passwords, and see who opens your secrets.**
 
 Every extension you install, every AI agent you let run commands, and every script your editor starts runs
 with the same access you have. One bad update, one poisoned package or one prompt injection is enough to

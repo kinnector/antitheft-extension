@@ -4,7 +4,7 @@
   <version>0.1.14</version>
   <vendor url="https://antitheft.pro">kinnector</vendor>
   <description><![CDATA[
-    <p><b>Stop malicious plugins, AI agents and the programs they start from stealing your crypto wallets and passwords.</b></p>
+    <p><b>Stop infostealers in plugins, AI agents and the programs they start from stealing your wallets and passwords, and see who opens your secrets.</b></p>
     <p>Every plugin you install runs with the same access you have. One bad update is enough for a plugin to read
     your wallet, the passwords your browser saved, or the session that keeps you signed in. Antitheft works with the
     <a href="https://antitheft.pro">Antitheft app</a>, which locks your vaults on the computer itself, and brings that
