@@ -330,12 +330,22 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 case NOT_INSTALLED -> {
                     // a setup that is mostly done: the plugin is in, antitheft is the one step left, the IDE
                     // switches on by itself once it runs
-                    p.add(Box.createVerticalStrut(JBUI.scale(4)));
-                    p.add(left(step(AllIcons.Actions.Checked, "Added to " + s.ideName(), "The plugin is in and ready", false, null)));
-                    p.add(left(step(AllIcons.General.ArrowRight, "Install antitheft",
-                        "The app that keeps your wallets and saved passwords yours, on this computer", true,
+                    // drawn with the tool window's own parts (a bordered card, rows, the dot-and-word chip), no marks
+                    JPanel setup = column();
+                    setup.setBorder(BorderFactory.createCompoundBorder(JBUI.Borders.customLine(JBColor.border(), 1), JBUI.Borders.empty(4, 12, 4, 12)));
+                    JPanel bar = new JPanel(new BorderLayout());
+                    bar.setOpaque(false);
+                    bar.setBorder(JBUI.Borders.empty(4, 0));
+                    bar.add(new JBLabel("Setup", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER), BorderLayout.WEST);
+                    bar.add(new JBLabel("1 of 2 done", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER), BorderLayout.EAST);
+                    setup.add(left(bar));
+                    setup.add(left(step("Added to " + s.ideName(), "The plugin is in", chip("Done", OK, null), null)));
+                    setup.add(left(step("Install antitheft", "The app that keeps your wallets and saved passwords yours, on this computer", null,
                         button("Get antitheft", () -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT)))));
-                    p.add(left(step(AllIcons.General.InspectionsOKEmpty, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
+                    p.add(Box.createVerticalStrut(JBUI.scale(4)));
+                    p.add(left(setup));
+                    p.add(Box.createVerticalStrut(JBUI.scale(8)));
+                    p.add(left(new JBLabel("Protection switches on by itself once antitheft runs", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
                     p.add(Box.createVerticalStrut(JBUI.scale(12)));
                     p.add(left(new JBLabel("What switches on", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
                     p.add(Box.createVerticalStrut(JBUI.scale(4)));
@@ -372,18 +382,20 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return row;
         }
 
-        /** One setup step: a mark, a title (bold only on the step left), a line, and that step's button. */
-        private static JComponent step(Icon icon, String title, String detail, boolean now, JComponent action) {
-            JPanel row = new JPanel(new BorderLayout(JBUI.scale(8), 0));
+        /** One setup row: a title, a line, that step's button, and its state chip on the right; a hairline above. */
+        private static JComponent step(String title, String detail, JComponent state, JComponent action) {
+            JPanel row = new JPanel(new BorderLayout(JBUI.scale(12), 0));
             row.setOpaque(false);
-            row.setBorder(JBUI.Borders.empty(4, 0, 8, 0));
-            JBLabel mark = new JBLabel(icon);
-            mark.setVerticalAlignment(JBLabel.TOP);
-            row.add(mark, BorderLayout.WEST);
+            row.setBorder(BorderFactory.createCompoundBorder(JBUI.Borders.customLineTop(JBColor.border()), JBUI.Borders.empty(8, 0)));
+            if (state != null) {
+                JPanel east = new JPanel(new BorderLayout());
+                east.setOpaque(false);
+                east.add(state, BorderLayout.NORTH);
+                row.add(east, BorderLayout.EAST);
+            }
             JPanel t = column();
             JBLabel h = new JBLabel(title);
-            if (now) h.setFont(JBFont.label().asBold());
-            else h.setForeground(UIUtil.getContextHelpForeground());
+            h.setFont(JBFont.label().asBold());
             t.add(left(h));
             t.add(left(new JBLabel(detail, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
             if (action != null) {
