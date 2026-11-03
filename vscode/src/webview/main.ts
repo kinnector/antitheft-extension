@@ -151,6 +151,8 @@ const GLYPHS: Record<string, string> = {
   pause: "M8 5v14M16 5v14",
   check: "M5 12l4 4 10-10",
   external: "M14 4h6v6M20 4l-9 9M18 14v5H5V6h5",
+  // Tabler "eye" (MIT): watching, not blocking
+  eye: "M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6",
 };
 
 function glyph(name: string, cls = "glyph"): SVGElement {
@@ -233,6 +235,10 @@ interface Look {
   tone: "ok" | "warn" | "bad" | "muted";
   /** what to do about it, in the antitheft app */
   action?: string;
+  /** the action is the one thing to do now: a button, not a link */
+  primary?: boolean;
+  /** one plain sentence under the standing, for a state people must not miss */
+  notice?: string;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -246,8 +252,17 @@ function look(s: State): Look {
   if (p.standing === "no-access") return { icon: m.offline, title: "Almost there", sub: "One step left: continue in antitheft", tone: "muted" };
   if (p.standing === "not-running") return { icon: m.offline, title: "Not running", sub: "One step left: start antitheft", tone: "warn" };
   if (p.standing === "paused") {
+    // no licence is the state people miss: said in the title, the line, a sentence of its own and a real button
     return p.pausedBy === "license"
-      ? { icon: m.paused, title: "Watching only", sub: "Nothing is blocked without a licence", tone: "warn", action: "Get a licence" }
+      ? {
+          icon: m.paused,
+          title: "Watching only",
+          sub: "No licence on this computer",
+          tone: "warn",
+          notice: "antitheft sees every read of your vaults but blocks none of them until this computer has a licence.",
+          action: "Get a licence",
+          primary: true,
+        }
       : { icon: m.paused, title: "Paused", sub: "Nothing is blocked until you resume", tone: "warn", action: "Resume in antitheft" };
   }
   const needs = s.items.filter((i) => i.needsYou).length;
@@ -258,10 +273,12 @@ function look(s: State): Look {
 }
 
 function mark(s: State, icon: string): HTMLElement[] {
-  // the alert mark has its own red dot: a light and a dark version instead of an inverted one
-  return icon === s.media.alert
-    ? [h("img", { class: "only-light", src: s.media.alertLight, alt: "" }), h("img", { class: "only-dark", src: s.media.alert, alt: "" })]
-    : [h("img", { class: "invertable", src: icon, alt: "" })];
+  // the alert mark has its own red dot and the paused one a solid amber dot: a light and a dark version of each
+  // instead of an inverted one (inverting would turn the colour)
+  const pair = (light: string | undefined, dark: string) => [h("img", { class: "only-light", src: light ?? dark, alt: "" }), h("img", { class: "only-dark", src: dark, alt: "" })];
+  if (icon === s.media.alert) return pair(s.media.alertLight, s.media.alert);
+  if (icon === s.media.paused) return pair(s.media.pausedLight, s.media.paused);
+  return [h("img", { class: "invertable", src: icon, alt: "" })];
 }
 
 /** Two facts under the standing: whether this extension works, and what antitheft on this computer is doing. */
@@ -277,7 +294,9 @@ function coverage(s: State): HTMLElement {
     p === "protected"
       ? ["antitheft installed", "ok", s.protection.systemLevel ? "Programs an extension starts are stopped too." : "This computer can't block at the system level."]
       : p === "paused"
-        ? ["antitheft paused", "warn", s.protection.pausedBy === "license" ? "Watching only: no licence on this computer." : "Nothing is blocked until you resume."]
+        ? s.protection.pausedBy === "license"
+          ? ["No licence, nothing blocked", "warn", "antitheft records every read of your vaults and blocks none until this computer has a licence."]
+          : ["antitheft paused", "warn", "Nothing is blocked until you resume."]
         : p === "not-running"
           ? ["antitheft not running", "warn", "antitheft is installed, but its service is stopped."]
           : p === "checking"
@@ -314,7 +333,12 @@ function hero(s: State): HTMLElement {
     ),
     // until antitheft answers, the setup steps say where things stand; the chips would only repeat it
     connected(s) || s.protection.standing === "checking" ? coverage(s) : null,
-    l.action ? button(l.action, (e?: Event) => (e?.stopPropagation(), openApp("/")), "link", "external") : null,
+    l.notice ? h("div", { class: "hero-notice" }, l.notice) : null,
+    l.action
+      ? l.primary
+        ? h("div", { class: "hero-action" }, button(l.action, (e?: Event) => (e?.stopPropagation(), openApp("/")), "primary", "external"))
+        : button(l.action, (e?: Event) => (e?.stopPropagation(), openApp("/")), "link", "external")
+      : null,
   );
 }
 
@@ -334,7 +358,8 @@ function stats(s: State): HTMLElement | null {
   return h(
     "div",
     { class: "stats" },
-    v ? tile(String(v.locked), v.locked === 1 ? "vault locked" : "vaults locked", "", () => send({ type: "screen", screen: "vaults" })) : null,
+    // while nothing is blocked a vault is watched, never "locked"
+    v ? tile(String(v.locked), paused ? (v.locked === 1 ? "vault watched" : "vaults watched") : v.locked === 1 ? "vault locked" : "vaults locked", "", () => send({ type: "screen", screen: "vaults" })) : null,
     tile(String(exts.length), exts.length === 1 ? "extension watched" : "extensions watched", "", () => send({ type: "screen", screen: "extensions" })),
     v
       ? tile(compact(v.refused), paused ? "would be denied, 7d" : "denied, 7 days", v.refused ? "bad" : "", () => openApp("/activity"))
@@ -555,7 +580,15 @@ function panel(s: State): HTMLElement {
       l.action ? null : h("span", { class: `status ${l.tone}`, title: l.sub }, h("span", { class: `dot ${l.tone}` }), "Protected"),
       button("Open antitheft", () => openApp(route), "link", "external"),
     ),
-    l.action ? h("div", { class: "pause-bar" }, glyph("pause", "bar-glyph"), h("span", {}, `${l.title}. ${l.sub}.`), button(l.action, () => openApp("/"), "link", "external")) : null,
+    l.action
+      ? h(
+          "div",
+          { class: "pause-bar" },
+          glyph(l.primary ? "eye" : "pause", "bar-glyph"),
+          h("span", {}, l.primary ? h("strong", {}, `${l.title}.`) : `${l.title}.`, " ", l.notice ?? `${l.sub}.`),
+          button(l.action, () => openApp("/"), l.primary ? "primary" : "link", "external"),
+        )
+      : null,
     h("div", { class: "page-body" }, screenHead(s, current), current === "alerts" ? alertsScreen(s) : current === "activity" ? activityScreen(s) : current === "vaults" ? vaultsScreen(s) : extensionsScreen(s)),
   );
 }
@@ -570,7 +603,7 @@ function screenHead(s: State, current: Screen): HTMLElement {
     current === "alerts"
       ? ["Alerts", needs ? `${plural(needs, "alert")} from this editor, ${needs === 1 ? "it needs" : "they need"} you` : "Nothing from this editor needs you"]
       : current === "vaults"
-        ? ["Vaults", v ? `${v.locked} of ${v.total} locked to their own app` : "Reading the vaults on this computer"]
+        ? ["Vaults", v ? (s.protection.standing === "protected" ? `${v.locked} of ${v.total} locked to their own app` : `${v.total} found, watched only: nothing is blocked`) : "Reading the vaults on this computer"]
         : current === "activity"
           ? ["Activity", `${plural(s.items.length, "thing")} extensions did in this editor`]
           : ["Extensions", `${exts.length} installed, ${attention ? `${attention} ${attention === 1 ? "needs" : "need"} your attention` : "none needs your attention"}`];

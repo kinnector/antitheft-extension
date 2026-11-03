@@ -67,7 +67,11 @@ public final class AntitheftStatusBarWidgetFactory implements StatusBarWidgetFac
                 case NOT_INSTALLED -> "antitheft: one step left";
                 case NO_ACCESS -> "antitheft: one step left";
                 case NOT_RUNNING -> "antitheft: not running";
-                case PAUSED -> needs > 0 ? "antitheft paused · " + needs + (needs == 1 ? " alert" : " alerts") : "antitheft paused";
+                case PAUSED -> {
+                    // no licence reads as what it means, never as a pause someone chose
+                    String lead = "license".equals(s.pausedBy) ? "antitheft: watching only" : "antitheft paused";
+                    yield needs > 0 ? lead + " · " + needs + (needs == 1 ? " alert" : " alerts") : lead;
+                }
                 case PROTECTED -> needs > 0 ? needs + (needs == 1 ? " alert" : " alerts") : "antitheft";
             };
         }

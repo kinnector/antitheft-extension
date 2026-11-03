@@ -55,6 +55,13 @@ Rules that matter:
   remembers those (globalState / PropertiesComponent `antitheft.reviewed`). The status row and the status bar
   lead to the alerts; under the status: "Extension working" and "antitheft installed / paused / not running /
   starting / not found". No progress bar on the vaults.
+- **No licence is never only in small print.** Paused by the licence: "Watching only / No licence on this computer",
+  the chip "No licence, nothing blocked", one sentence of its own under the standing ("antitheft sees every read of
+  your vaults but blocks none of them until this computer has a licence."), Get a licence as a PRIMARY button (the
+  owner's pause keeps its link), the panel's bar the same, the status bar "antitheft: watching only" (eye). While
+  anything but protected, nothing says "locked": the figure reads "vaults watched", the Vaults tab "N found,
+  watched only: nothing is blocked". The paused mark is the "a." with a SOLID amber dot (light and dark files, like
+  the alert's red one), never a hollow ring.
 - **Until antitheft answers, the same setup steps show, the step left marked** (`daemon/protection.ts` standings):
   not installed = Install antitheft; `no-access` (installed and running, but the socket, `root:kinnector 0660`,
   refuses this login: the installer's `usermod -a -G kinnector` only applies at the next login; told apart from

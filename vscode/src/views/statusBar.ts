@@ -37,15 +37,21 @@ export class StatusBar implements vscode.Disposable {
         this.item.tooltip = "antitheft is installed, but its service is stopped. Start it, and this editor is protected again.";
         this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
         break;
-      case "paused":
-        this.item.text = "$(debug-pause) antitheft paused";
-        this.item.tooltip = p.pausedBy === "license" ? "antitheft is watching only: no licence on this computer." : "Protection is paused. Resume it in the antitheft app.";
+      case "paused": {
+        // no licence reads as what it means, "watching only", never as a pause someone chose
+        const lead = p.pausedBy === "license" ? "$(eye) antitheft: watching only" : "$(debug-pause) antitheft paused";
+        this.item.text = lead;
+        this.item.tooltip =
+          p.pausedBy === "license"
+            ? "No licence on this computer: antitheft records every read of your vaults and blocks none."
+            : "Protection is paused. Resume it in the antitheft app.";
         this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
         if (n) {
-          this.item.text = `$(debug-pause) antitheft paused · ${n} ${n === 1 ? "alert" : "alerts"}`;
+          this.item.text = `${lead} · ${n} ${n === 1 ? "alert" : "alerts"}`;
           this.item.command = "antitheft.openAlerts";
         }
         break;
+      }
       case "protected":
         this.item.text = n ? `$(shield) ${n} ${n === 1 ? "alert" : "alerts"}` : "$(shield) antitheft";
         this.item.tooltip = n ? `${this.latest() ?? `${n} ${n === 1 ? "alert needs" : "alerts need"} you`}\nClick to see ${n === 1 ? "it" : "them"}` : "antitheft is protecting this editor";

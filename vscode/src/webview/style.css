@@ -87,6 +87,9 @@ body.vscode-dark .only-light, body.vscode-high-contrast:not(.vscode-high-contras
 .hero-title { font-size: 14px; font-weight: 600; }
 .hero-sub { font-size: 12px; }
 .hero > .btn.link { align-self: flex-start; padding: 0; height: auto; }
+/* a state people must not miss (no licence): one plain sentence and the one thing to do, as a real button */
+.hero-notice { padding-left: 36px; font-size: 12px; color: var(--vscode-foreground); }
+.hero-action { padding-left: 36px; }
 
 .coverage { display: flex; flex-wrap: wrap; gap: 4px 16px; padding-left: 36px; }
 .cover { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
@@ -206,6 +209,8 @@ button.stat:hover { background: var(--tint); }
   background: color-mix(in srgb, var(--warn) 12%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--warn) 35%, var(--line));
 }
 .pause-bar .btn.link { height: auto; padding: 0 4px; }
+.pause-bar > span { flex: 1; min-width: 0; }
+.pause-bar strong { font-weight: 600; }
 .bar-glyph { width: 14px; height: 14px; color: var(--warn); }
 .page-body { padding: 16px 24px 40px; max-width: 1200px; }
 .page-body.narrow { max-width: 760px; display: flex; flex-direction: column; gap: 16px; }

@@ -146,7 +146,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 case NO_ACCESS -> new Look(OFFLINE, "Almost there", "One step left: continue in antitheft", muted, null);
                 case NOT_RUNNING -> new Look(OFFLINE, "Not running", "One step left: start antitheft", WARN, null);
                 case PAUSED -> "license".equals(s.pausedBy)
-                    ? new Look(PAUSED, "Watching only", "Nothing is blocked without a licence", WARN, "Get a licence")
+                    ? new Look(PAUSED, "Watching only", "No licence on this computer", WARN, "Get a licence")
                     : new Look(PAUSED, "Paused", "Nothing is blocked until you resume", WARN, "Resume in antitheft");
                 case PROTECTED -> needs > 0
                     ? new Look(ALERT, needs == 1 ? "1 alert needs you" : needs + " alerts need you", guarded, BAD, null)
@@ -178,7 +178,9 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             chips.add(Box.createHorizontalStrut(JBUI.scale(16)));
             chips.add(switch (s.standing) {
                 case PROTECTED -> chip("antitheft installed", OK, s.systemLevel ? "Programs a plugin starts are stopped too." : "This computer can't block at the system level.");
-                case PAUSED -> chip("antitheft paused", WARN, "license".equals(s.pausedBy) ? "Watching only: no licence on this computer." : "Nothing is blocked until you resume.");
+                case PAUSED -> "license".equals(s.pausedBy)
+                    ? chip("No licence, nothing blocked", WARN, "antitheft records every read of your vaults and blocks none until this computer has a licence.")
+                    : chip("antitheft paused", WARN, "Nothing is blocked until you resume.");
                 case NO_ACCESS -> chip("antitheft installed", UIUtil.getContextHelpForeground(), "Installed; continue in the antitheft app.");
                 case NOT_RUNNING -> chip("antitheft not running", WARN, "antitheft is installed, but its service is stopped.");
                 case CHECKING -> chip("antitheft starting", UIUtil.getContextHelpForeground(), "Looking for antitheft on this computer.");
@@ -189,9 +191,17 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 text.add(Box.createVerticalStrut(JBUI.scale(8)));
                 text.add(left(chips));
             }
+            // no licence is the state people miss: a sentence of its own, and Get a licence as the default button
+            boolean noLicence = s.standing == AntitheftService.Standing.PAUSED && "license".equals(s.pausedBy);
+            if (noLicence) {
+                text.add(Box.createVerticalStrut(JBUI.scale(8)));
+                text.add(left(wrap("antitheft sees every read of your vaults but blocks none of them until this computer has a licence.")));
+            }
             if (l.action() != null) {
                 text.add(Box.createVerticalStrut(JBUI.scale(8)));
-                text.add(left(button(l.action(), () -> s.openApp("/"))));
+                JButton act = button(l.action(), () -> s.openApp("/"));
+                if (noLicence) act.putClientProperty(com.intellij.ide.ui.laf.darcula.ui.DarculaButtonUI.DEFAULT_STYLE_KEY, Boolean.TRUE);
+                text.add(left(act));
             }
             p.add(text, BorderLayout.CENTER);
             // when alerts need you, the whole row is the way to them
@@ -235,7 +245,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             long blockedHere = s.items.stream().filter(i -> i.label().equals("BLOCKED") || i.label().equals("STOPPED")).count();
             JPanel row = new JPanel(new GridLayout(1, 3, JBUI.scale(6), 0));
             row.setOpaque(false);
-            if (v != null) row.add(stat(String.valueOf(v.locked()), v.locked() == 1 ? "vault locked" : "vaults locked", v.locked() > 0 ? OK : null, 1));
+            if (v != null) row.add(stat(String.valueOf(v.locked()), paused ? (v.locked() == 1 ? "vault watched" : "vaults watched") : v.locked() == 1 ? "vault locked" : "vaults locked", v.locked() > 0 && !paused ? OK : null, 1));
             row.add(stat(String.valueOf(plugins), plugins == 1 ? "plugin watched" : "plugins watched", null, 3));
             if (v != null) row.add(stat(Model.compact(v.refused()), paused ? "would be denied, 7d" : "denied reads, 7d", v.refused() > 0 ? BAD : null, -1));
             else row.add(stat(String.valueOf(blockedHere), "blocked here", blockedHere > 0 ? BAD : null, 0));
@@ -275,7 +285,8 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 return p;
             }
             boolean paused = s.standing != AntitheftService.Standing.PROTECTED;
-            JBLabel head = new JBLabel(v.locked() + " of " + v.total() + " vaults are locked to their own app");
+            // while nothing is blocked a vault is watched, never "locked"
+            JBLabel head = new JBLabel(paused ? v.total() + " vaults found, watched only: nothing is blocked" : v.locked() + " of " + v.total() + " vaults are locked to their own app");
             head.setFont(JBFont.label().asBold().biggerOn(2));
             p.add(left(head));
             p.add(left(wrap("No other program can open them, plugins included." + (v.observed() == 1

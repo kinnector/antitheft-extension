@@ -61,7 +61,7 @@ function state(surface: "sidebar" | "panel", standing: string, overrides: Record
     extensions: { attention: rows.attention.map(icon), quiet: rows.quiet.map(icon) },
     vaults,
     editor: "Visual Studio Code",
-    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", alertExample: "m/alert-example.webp" },
+    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", pausedLight: "m/pal.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", alertExample: "m/alert-example.webp" },
     now: 1200,
     ...overrides,
   };
@@ -251,6 +251,18 @@ test("paused and not running", () => {
   assert.equal(pp.posted.at(-1)!.type, "disable");
   const lic = render("sidebar", state("sidebar", "paused", { protection: { standing: "paused", systemLevel: true, pausedBy: "license" } }));
   assert.equal(lic.text(".standing-title")[0], "Watching only");
+  // no licence is said in the line, a sentence of its own and the chip, and the way out is a real button
+  assert.equal(lic.text(".hero-sub")[0], "No licence on this computer");
+  assert.match(lic.text(".hero-notice")[0], /blocks none of them until this computer has a licence/);
+  assert.ok(lic.text(".cover").includes("No licence, nothing blocked"));
+  assert.ok(lic.root.querySelector(".hero-action .btn.primary"), "Get a licence is a primary button");
+  // the mark: a light and a dark version with the solid amber dot, never the inverted hollow one
+  assert.deepEqual([...lic.root.querySelectorAll(".hero-mark img")].map((i) => i.getAttribute("src")), ["m/pal.svg", "m/pa.svg"]);
+  assert.ok(lic.text(".stat-label").some((t) => /^vaults? watched$/.test(t)), "watched, never locked, while nothing is blocked");
+  assert.ok(!lic.text(".stat-label").some((t) => /locked/.test(t)));
+  const licPanel = render("panel", state("panel", "paused", { protection: { standing: "paused", systemLevel: true, pausedBy: "license" } }));
+  assert.match(licPanel.text(".pause-bar")[0], /^Watching only. antitheft sees every read/);
+  assert.ok(licPanel.root.querySelector(".pause-bar .btn.primary"));
   lic.click("Get a licence");
   assert.deepEqual(lic.posted.at(-1), { type: "openApp", route: "/" });
   const n = render("panel", state("panel", "not-running"));
