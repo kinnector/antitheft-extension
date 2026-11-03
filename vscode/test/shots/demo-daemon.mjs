@@ -36,7 +36,7 @@ const alerts = [
   {
     id: 4107, category: "alert", reviewed: false, paused: false, count: 1, kind: "storage_access", extension_id: THIEF,
     first_seen_unix: ago(5), last_seen_unix: ago(5),
-    data: { verdict: "denied", access_response: "kill", app_name: "Exodus", resource_id: "exodus", data_category: "wallet", actor_process: program, actor_chain: [] },
+    data: { verdict: "denied", access_response: "kill", app_name: "Trust Wallet", resource_id: "chrome:egjidjbpglichdcondbcbdnbeeppgdph", data_category: "wallet", actor_process: program, actor_chain: [] },
   },
 ];
 
@@ -46,8 +46,8 @@ const v = (id, name, vendor, category, kind, status, files, allowed, refused = 0
 const vaults = [
   v("chrome:nkbihfbeogaeaoehlefnkodbefgpgknn", "MetaMask", "", "software_wallet", "wallets", "protected", 3, 214, 1, "chrome"),
   v("chrome:acmacodkjbdgmoleebolmdjonilkdbch", "Rabby Wallet", "", "software_wallet", "wallets", "protected", 3, 96, 0, "chrome"),
-  v("chrome:egjidjbpglichdcondbcbdnbeeppgdph", "Trust Wallet", "", "software_wallet", "wallets", "protected", 2, 41, 0, "chrome"),
-  v("exodus", "Exodus", "Exodus Movement", "software_wallet", "wallets", "protected", 4, 380, 1),
+  v("chrome:egjidjbpglichdcondbcbdnbeeppgdph", "Trust Wallet", "", "software_wallet", "wallets", "protected", 2, 41, 1, "chrome"),
+  v("exodus", "Exodus", "Exodus Movement", "software_wallet", "wallets", "protected", 4, 380),
   v("electrum", "Electrum", "Electrum Technologies", "software_wallet", "wallets", "protected", 2, 58),
   v("monero_wallet_cli", "Monero CLI wallet", "The Monero Project", "software_wallet", "wallets", "watching", 2, 6),
   v("bitwarden", "Bitwarden", "Bitwarden Inc.", "password_manager", "passwords", "protected", 2, 1240),
