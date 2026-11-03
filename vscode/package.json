@@ -1,8 +1,8 @@
 {
   "name": "antitheft",
   "displayName": "Antitheft",
-  "description": "Blocks malicious extensions from reading your crypto wallets, browser passwords and password managers, and names the one that tried. Works with the Antitheft app.",
-  "version": "0.1.13",
+  "description": "Stops malicious extensions, AI agents and the programs they start from stealing your crypto wallets, browser passwords and password managers, and names the one that tried. Works with the Antitheft app.",
+  "version": "0.1.14",
   "publisher": "kinnector",
   "license": "SEE LICENSE IN LICENSE.md",
   "homepage": "https://antitheft.pro",
@@ -42,12 +42,12 @@
     "browser passwords",
     "keyring",
     "private keys",
-    "vault",
+    "mcp",
     "protection",
     "privacy",
-    "exfiltration",
+    "coding agent",
     "antivirus",
-    "safety"
+    "ai agent"
   ],
   "extensionKind": [
     "ui"

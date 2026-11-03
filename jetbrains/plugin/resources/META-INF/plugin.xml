@@ -1,10 +1,10 @@
 <idea-plugin>
   <id>pro.antitheft</id>
   <name>Antitheft</name>
-  <version>0.1.13</version>
+  <version>0.1.14</version>
   <vendor url="https://antitheft.pro">kinnector</vendor>
   <description><![CDATA[
-    <p><b>Stop malicious plugins from stealing your crypto wallets and passwords.</b></p>
+    <p><b>Stop malicious plugins, AI agents and the programs they start from stealing your crypto wallets and passwords.</b></p>
     <p>Every plugin you install runs with the same access you have. One bad update is enough for a plugin to read
     your wallet, the passwords your browser saved, or the session that keeps you signed in. Antitheft works with the
     <a href="https://antitheft.pro">Antitheft app</a>, which locks your vaults on the computer itself, and brings that
@@ -13,6 +13,9 @@
       <li><b>Blocks plugins from your vaults.</b> A plugin's own code is refused when it reaches for a wallet, a
       password store or a browser's saved logins.</li>
       <li><b>Stops what they start.</b> A program a plugin downloads and runs is stopped when it goes for your vaults.</li>
+      <li><b>Covers AI agents and everything the IDE runs.</b> Coding agents and assistants, the terminal, run
+      configurations, MCP servers and package install scripts are refused your vaults the same way, and the alert
+      shows where it came from.</li>
       <li><b>Names the plugin.</b> Every alert says which plugin was behind it, so you can disable or uninstall it
       right from the alert.</li>
       <li><b>Shows you what is protected.</b> The Vaults tab lists the wallets, password managers and browsers Antitheft

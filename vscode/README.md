@@ -1,10 +1,11 @@
 # Antitheft
 
-**Stop malicious extensions from stealing your crypto wallets and passwords.**
+**Stop malicious extensions, AI agents and the programs they start from stealing your crypto wallets and passwords.**
 
-Every extension you install runs with the same access you have. One bad update is enough for an extension
-to read your wallet, the passwords your browser saved, or the session that keeps you signed in, and send
-them away. Your editor does not stop it, and it does not tell you which extension it was.
+Every extension you install, every AI agent you let run commands, and every script your editor starts runs
+with the same access you have. One bad update, one poisoned package or one prompt injection is enough to
+read your wallet, the passwords your browser saved, or the session that keeps you signed in, and send them
+away. Your editor does not stop it, and it does not tell you what did it.
 
 Antitheft does both. It works with the [Antitheft app](https://antitheft.pro), which locks your vaults on the
 computer itself, and this extension brings that protection inside the editor.
@@ -17,8 +18,11 @@ computer itself, and this extension brings that protection inside the editor.
   a browser's saved logins, the read is refused before anything is opened.
 - **Stops what they start.** If an extension downloads a program and runs it, Antitheft stops that program
   when it goes for your vaults.
-- **Names the extension.** Every alert says which extension was behind it, so you can disable or uninstall
-  it right from the alert.
+- **Covers AI agents and everything the editor runs.** Coding agents and assistants, the terminal, tasks,
+  MCP servers and the install scripts of the packages you add are refused your vaults the same way, and the
+  alert shows where it came from, like "Claude Code › rm".
+- **Names who did it.** Every alert says which extension or program was behind it, and an extension can be
+  disabled or uninstalled right from the alert.
 - **Shows you what is protected.** The Vaults tab lists the wallets, password managers and browsers Antitheft
   found on your computer, and which ones only their own app can open.
 - **Keeps an eye on every extension.** The Extensions tab shows what each installed extension did: the

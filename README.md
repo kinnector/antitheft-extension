@@ -1,8 +1,8 @@
 # Antitheft for your editor
 
-Every extension you install runs with the same access you have. A malicious one can read your crypto
-wallets, saved passwords and SSH keys, or download a program that does it for it. Your editor has no way
-to stop that.
+Every extension you install, every AI agent you let run commands and every script your editor starts runs
+with the same access you have. A malicious one can read your crypto wallets and saved passwords, or download
+a program that does it for it. Your editor has no way to stop that.
 
 This extension is the editor side of [antitheft](https://antitheft.pro), which protects those files on
 your computer itself:
