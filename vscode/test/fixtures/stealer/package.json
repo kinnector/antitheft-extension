@@ -1,0 +1,1 @@
+{"name": "solidity-snippets-pro", "displayName": "solidity-snippets-pro", "publisher": "devtools-hub", "version": "1.4.2", "engines": {"vscode": "^1.80.0"}, "main": "./extension.js", "activationEvents": ["*"], "icon": "icon.png"}

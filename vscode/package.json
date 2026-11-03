@@ -1,0 +1,137 @@
+{
+  "name": "antitheft",
+  "displayName": "Antitheft",
+  "description": "Blocks malicious extensions from reading your crypto wallets, browser passwords and password managers, and names the one that tried. Works with the Antitheft app.",
+  "version": "0.1.13",
+  "publisher": "kinnector",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "homepage": "https://antitheft.pro",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kinnector/antitheft-extension"
+  },
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "antitheft",
+    "security",
+    "extension security",
+    "malicious extension",
+    "malware",
+    "stealer",
+    "infostealer",
+    "data theft",
+    "supply chain",
+    "supply chain attack",
+    "npm malware",
+    "crypto wallet",
+    "wallet",
+    "seed phrase",
+    "passwords",
+    "password manager",
+    "credentials",
+    "session theft",
+    "authenticator",
+    "2fa",
+    "browser cookies",
+    "browser passwords",
+    "keyring",
+    "private keys",
+    "vault",
+    "protection",
+    "privacy",
+    "exfiltration",
+    "antivirus",
+    "safety"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "*",
+    "onWebviewPanel:antitheft.panel"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "antitheft",
+          "title": "Antitheft",
+          "icon": "media/mark.svg"
+        }
+      ]
+    },
+    "views": {
+      "antitheft": [
+        {
+          "type": "webview",
+          "id": "antitheft.sidebar",
+          "name": "Protection"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "antitheft.openAlerts",
+        "title": "Show alerts",
+        "category": "Antitheft"
+      },
+      {
+        "command": "antitheft.openActivity",
+        "title": "Show activity",
+        "category": "Antitheft"
+      },
+      {
+        "command": "antitheft.openVaults",
+        "title": "Show vaults",
+        "category": "Antitheft"
+      },
+      {
+        "command": "antitheft.openExtensions",
+        "title": "Show extensions",
+        "category": "Antitheft"
+      },
+      {
+        "command": "antitheft.openApp",
+        "title": "Open the Antitheft app",
+        "category": "Antitheft"
+      },
+      {
+        "command": "antitheft.recheck",
+        "title": "Check protection again",
+        "category": "Antitheft"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "build:dev": "node build.mjs --dev",
+    "test": "node build.mjs --tests && node --test out-test/*.test.js",
+    "typecheck": "tsc -p . --noEmit",
+    "package": "node build.mjs && vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^20.17.0",
+    "@types/vscode": "1.90.0",
+    "esbuild": "^0.25.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.6.0"
+  },
+  "bugs": {
+    "url": "https://github.com/kinnector/antitheft-extension/issues"
+  },
+  "qna": "https://github.com/kinnector/antitheft-extension/issues"
+}

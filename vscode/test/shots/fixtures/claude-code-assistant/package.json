@@ -1,0 +1,1 @@
+{"name":"claude-code-assistant","displayName":"Claude Code Assistant","publisher":"claude-ai-tools","version":"1.8.2","description":"AI coding assistant powered by Claude","engines":{"vscode":"^1.80.0"}}

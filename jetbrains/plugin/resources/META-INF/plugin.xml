@@ -1,0 +1,39 @@
+<idea-plugin>
+  <id>pro.antitheft</id>
+  <name>Antitheft</name>
+  <version>0.1.13</version>
+  <vendor url="https://antitheft.pro">kinnector</vendor>
+  <description><![CDATA[
+    <p><b>Stop malicious plugins from stealing your crypto wallets and passwords.</b></p>
+    <p>Every plugin you install runs with the same access you have. One bad update is enough for a plugin to read
+    your wallet, the passwords your browser saved, or the session that keeps you signed in. Antitheft works with the
+    <a href="https://antitheft.pro">Antitheft app</a>, which locks your vaults on the computer itself, and brings that
+    protection inside the IDE.</p>
+    <ul>
+      <li><b>Blocks plugins from your vaults.</b> A plugin's own code is refused when it reaches for a wallet, a
+      password store or a browser's saved logins.</li>
+      <li><b>Stops what they start.</b> A program a plugin downloads and runs is stopped when it goes for your vaults.</li>
+      <li><b>Names the plugin.</b> Every alert says which plugin was behind it, so you can disable or uninstall it
+      right from the alert.</li>
+      <li><b>Shows you what is protected.</b> The Vaults tab lists the wallets, password managers and browsers Antitheft
+      found, and which ones only their own app can open.</li>
+    </ul>
+    <p>Antitheft locks crypto wallets, browser passwords and cookies, password managers, authenticator apps, your
+    desktop keyring and messaging and cloud sync logins. What it finds depends on the apps on your computer.</p>
+    <p>Needs the Antitheft app installed and running on the same computer. The plugin talks only to it and sends
+    nothing anywhere else.</p>
+    <p>Source and issues: <a href="https://github.com/kinnector/antitheft-extension">github.com/kinnector/antitheft-extension</a>.</p>
+  ]]></description>
+  <idea-version since-build="251"/>
+  <depends>com.intellij.modules.platform</depends>
+
+  <applicationListeners>
+    <listener class="pro.antitheft.ide.Startup" topic="com.intellij.ide.AppLifecycleListener"/>
+  </applicationListeners>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <toolWindow id="antitheft" anchor="right" icon="/icons/toolwindow.svg" factoryClass="pro.antitheft.ide.AntitheftToolWindowFactory"/>
+    <statusBarWidgetFactory id="antitheft" implementation="pro.antitheft.ide.AntitheftStatusBarWidgetFactory" order="first"/>
+    <notificationGroup id="antitheft" displayType="BALLOON"/>
+  </extensions>
+</idea-plugin>

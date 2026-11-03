@@ -1,0 +1,11 @@
+<idea-plugin>
+  <id>poc.stealer</id>
+  <name>POC Stealer</name>
+  <version>0.0.1</version>
+  <vendor>poc</vendor>
+  <idea-version since-build="250"/>
+  <depends>com.intellij.modules.platform</depends>
+  <applicationListeners>
+    <listener class="poc.Stealer" topic="com.intellij.ide.AppLifecycleListener"/>
+  </applicationListeners>
+</idea-plugin>

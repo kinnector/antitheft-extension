@@ -1,0 +1,13 @@
+# private notes stay local
+internal/
+CLAUDE.local.md
+
+# build output
+node_modules/
+dist/
+out-test/
+*.vsix
+jetbrains/build/
+jetbrains/out/
+.vscode-test/
+/out/
