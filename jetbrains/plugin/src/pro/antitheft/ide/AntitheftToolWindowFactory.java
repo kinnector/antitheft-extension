@@ -338,17 +338,19 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                         "The app that keeps your wallets and saved passwords yours, on this computer", true,
                         button("Get antitheft", () -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT)))));
                     p.add(left(step(muted, null, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
-                    // why it is here, then a real antitheft alert as a picture. Only what antitheft LOCKS is named: SSH
-                    // keys, .env and cloud CLI credentials are only watched.
-                    p.add(Box.createVerticalStrut(JBUI.scale(12)));
-                    // one line, read at a glance; the picture under it says the rest
-                    JBLabel why = new JBLabel("Stops plugins that go for your wallets");
-                    why.setFont(JBFont.label().asBold().biggerOn(1));
-                    p.add(left(why));
+                    // what antitheft is: three things with antitheft's own glass icons (the landing's, icons/glass),
+                    // then a real antitheft alert as a picture. Only what antitheft does: never SSH keys, .env or
+                    // cloud CLI credentials, which are only watched.
+                    p.add(Box.createVerticalStrut(JBUI.scale(16)));
+                    JBLabel what = new JBLabel("What is antitheft?");
+                    what.setFont(JBFont.label().asBold().biggerOn(2));
+                    p.add(left(what));
+                    p.add(Box.createVerticalStrut(JBUI.scale(8)));
+                    p.add(left(thing("keys", "Locks your wallets and passwords", "Only their own apps can open them")));
+                    p.add(left(thing("npm-cube", "Stops plugins that go for them", "Packages, AI agents and what they run too")));
+                    p.add(left(thing("anchor", "Catches what tries to stay", "Startup entries, services and cron jobs")));
                     p.add(Box.createVerticalStrut(JBUI.scale(8)));
                     p.add(left(sampleAlert()));
-                    p.add(Box.createVerticalStrut(JBUI.scale(12)));
-                    p.add(left(wrap("The same goes for browser passwords and cookies, password managers and 2FA apps, and chat and cloud logins, and for what AI agents, the terminal and package installs run.")));
                 }
                 default -> { }
             }
@@ -366,7 +368,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
         }
 
         /** A real antitheft alert as a picture (icons/alert-example.png: the app's own alert card, rendered at 2x for the
-         *  README's demo attack), 300 px wide, with a caption; never one rebuilt from the plugin's parts. */
+         *  README's demo attack), 300 px wide; never one rebuilt from the plugin's parts. */
         private static JComponent sampleAlert() {
             JPanel p = column();
             java.net.URL url = AntitheftToolWindowFactory.class.getResource("/icons/alert-example.png");
@@ -378,11 +380,40 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                     JBLabel pic = new JBLabel(new javax.swing.ImageIcon(img.getScaledInstance(width, Math.round(h * (width / (float) w)), java.awt.Image.SCALE_SMOOTH)));
                     pic.setToolTipText("An antitheft alert: a program a plugin started tried to read Google Chrome's passwords and was stopped");
                     p.add(left(pic));
-                    p.add(Box.createVerticalStrut(JBUI.scale(4)));
                 }
             }
-            p.add(left(new JBLabel("An alert from the antitheft app", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
             return p;
+        }
+
+        /** One thing antitheft does: its glass icon (icons/glass/<name>.png, 44 px), a title and one line. */
+        private static JComponent thing(String icon, String title, String detail) {
+            JPanel row = new JPanel(new BorderLayout(JBUI.scale(12), 0));
+            row.setOpaque(false);
+            row.setBorder(JBUI.Borders.empty(4, 0));
+            java.net.URL url = AntitheftToolWindowFactory.class.getResource("/icons/glass/" + icon + ".png");
+            if (url != null) {
+                java.awt.Image img = new javax.swing.ImageIcon(url).getImage();
+                int w = img.getWidth(null), h = img.getHeight(null);
+                if (w > 0 && h > 0) {
+                    int box = JBUI.scale(44);
+                    float k = Math.min(box / (float) w, box / (float) h);
+                    JBLabel mark = new JBLabel(new javax.swing.ImageIcon(img.getScaledInstance(Math.round(w * k), Math.round(h * k), java.awt.Image.SCALE_SMOOTH)));
+                    mark.setPreferredSize(new Dimension(box, box));
+                    mark.setHorizontalAlignment(JBLabel.CENTER);
+                    row.add(mark, BorderLayout.WEST);
+                }
+            }
+            JPanel t = column();
+            t.add(left(new JBLabel(title)));
+            t.add(left(new JBLabel(detail, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
+            JPanel center = new JPanel(new java.awt.GridBagLayout());
+            center.setOpaque(false);
+            // left-aligned, centred on the icon vertically
+            center.add(t, new java.awt.GridBagConstraints(0, 0, 1, 1, 1.0, 1.0, java.awt.GridBagConstraints.WEST,
+                java.awt.GridBagConstraints.NONE, new java.awt.Insets(0, 0, 0, 0), 0, 0));
+            row.add(center, BorderLayout.CENTER);
+            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
+            return row;
         }
 
         /** One setup step: the status dot as its mark with the hairline down to the next step (none on the last:

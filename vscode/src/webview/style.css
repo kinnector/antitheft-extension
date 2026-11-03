@@ -151,36 +151,19 @@ button.stat:hover { background: var(--tint); }
 .explain.wide h2 { font-size: 24px; font-weight: 500; }
 .explain p { margin: 0; color: var(--vscode-foreground); }
 
-/* not installed, below the steps: the real alert picture lands once, and a line goes with it (EXPERIMENT: four
-   ways of saying it, main.ts `hook`). Quiet means: the theme's own colours, one easing curve, motion once and
-   never with reduced motion, nothing loops. */
-.variant-switch { display: flex; align-items: center; gap: 4px; padding: 4px 0; font-size: 12px; }
-.variant-switch button { border: 1px solid var(--line); background: none; color: var(--muted); border-radius: var(--radius-in); padding: 2px 8px; cursor: pointer; font: inherit; }
-.variant-switch button.on { color: var(--vscode-foreground); border-color: var(--vscode-focusBorder, var(--line)); background: var(--tint); }
-.hook { margin: 0; padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
-.alert-picture { display: block; width: 100%; max-width: 432px; height: auto; }
+/* not installed, below the steps: "What is antitheft?", three things with antitheft's own glass icons, then the
+   app's real alert card landing once (never again on a redraw of the same view, never with reduced motion). */
+.what-is { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
+.what-is .what-is-title { margin: 0; font-size: 16px; font-weight: 600; }
+.thing { display: flex; align-items: center; gap: 12px; }
+.thing-icon { width: 44px; height: 44px; flex: none; object-fit: contain; }
+.thing-text { min-width: 0; display: flex; flex-direction: column; }
+.thing-title { font-weight: 500; }
+.thing-text .muted { font-size: 12px; }
+.alert-picture { display: block; width: 100%; max-width: 432px; height: auto; margin-top: 4px; }
 .alert-picture.arrive { animation: arrive 600ms var(--ease) 500ms both; }
 @keyframes arrive { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
-@keyframes appear { from { opacity: 0; } to { opacity: 1; } }
-/* 1: two beats, the second after the card lands */
-.beat { font-weight: 500; }
-.beat-after { animation: appear 500ms var(--ease) 1300ms both; }
-/* 2: a code comment, typed once in the editor's own code font; the card lands when it is written */
-.code-comment {
-  font-family: var(--vscode-editor-font-family, monospace); font-size: 12px; font-style: italic; color: var(--muted);
-  white-space: nowrap; overflow: hidden; width: calc(var(--n, 30) * 1ch + 1ch);
-  animation: type 900ms steps(var(--n, 30)) 200ms both;
-}
-@keyframes type { from { width: 0; } }
-.hook-2 .alert-picture.arrive { animation-delay: 1200ms; }
-/* 3: no title, a notification header; it lands with the card */
-.toast-head { display: flex; align-items: center; gap: 8px; font-size: 12px; animation: appear 600ms var(--ease) 500ms both; }
-.toast-head .dot.now { background: var(--vscode-textLink-foreground); }
-/* 4: a question, large and light; the card is the answer */
-.question { font-size: 20px; font-weight: 400; line-height: 1.25; }
-@media (prefers-reduced-motion: reduce) {
-  .alert-picture.arrive, .beat-after, .code-comment, .toast-head { animation: none; }
-}
+@media (prefers-reduced-motion: reduce) { .alert-picture.arrive { animation: none; } }
 
 /* not installed: a setup that is mostly done. Each step's mark is the extension's own status dot (the one in
    "● Extension working"): ok colour when done, link colour for the step left, muted for what follows; one

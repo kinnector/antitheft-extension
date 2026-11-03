@@ -61,7 +61,7 @@ function state(surface: "sidebar" | "panel", standing: string, overrides: Record
     extensions: { attention: rows.attention.map(icon), quiet: rows.quiet.map(icon) },
     vaults,
     editor: "Visual Studio Code",
-    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", alertExample: "m/alert-example.webp" },
+    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", alertExample: "m/alert-example.webp", glassKeys: "m/g/keys.webp", glassCube: "m/g/npm-cube.webp", glassAnchor: "m/g/anchor.webp" },
     now: 1200,
     ...overrides,
   };
@@ -221,21 +221,13 @@ test("not installed: almost there, one step left, what switches on; nothing else
     assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, "Install antitheft");
     r.click("Get antitheft");
     assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" });
-    // EXPERIMENT: the real alert picture lands, with four ways of saying the line, switched in a dev build; the
-    // count is this editor's own extensions
-    assert.deepEqual(r.text(".variant-switch button"), ["1", "2", "3", "4"]);
-    assert.equal(r.root.querySelector(".hook .alert-picture.arrive")?.getAttribute("src"), "m/alert-example.webp");
-    assert.match(r.text(".beat")[0], /^Say one of your \d+ extensions goes rogue\.$/, "1 by default");
-    assert.equal(r.text(".beat-after")[0], "antitheft stops it, and tells you which one.");
-    r.click("2");
-    assert.match(r.text(".code-comment")[0], /^\/\/ \d+ extensions\. one day:$/);
-    r.click("3");
-    assert.equal(r.text(".toast-head")[0], "now·antitheft");
-    r.click("4");
-    assert.match(r.text(".question")[0], /^What if one of your \d+ extensions goes rogue\?$/);
-    r.click("1");
+    // what antitheft is: three things with antitheft's own glass icons, then the real alert card landing
+    assert.equal(r.text(".what-is-title")[0], "What is antitheft?");
+    assert.deepEqual(r.text(".thing-title"), ["Locks your wallets and passwords", "Stops extensions that go for them", "Catches what tries to stay"]);
+    assert.deepEqual([...r.root.querySelectorAll(".thing-icon")].map((i) => i.getAttribute("src")), ["m/g/keys.webp", "m/g/npm-cube.webp", "m/g/anchor.webp"]);
+    assert.equal(r.root.querySelector(".what-is .alert-picture")?.getAttribute("src"), "m/alert-example.webp");
     assert.doesNotMatch(r.root.textContent ?? "", /SSH|\.env/, "only what antitheft locks is named");
-    assert.equal(r.root.querySelectorAll("h2, .soon").length, 0, "no warning headline, no coming soon");
+    assert.equal(r.root.querySelectorAll(".soon, .variant-switch").length, 0, "no coming soon, no experiment switch");
     assert.equal(r.root.querySelectorAll(".tab, .card").length, 0, "no alerts or tabs before antitheft protects");
   }
 });

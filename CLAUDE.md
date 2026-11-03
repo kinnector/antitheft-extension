@@ -61,14 +61,17 @@ Rules that matter:
   `GET_ANTITHEFT` address in the host, never one the webview names), Protected ("switches on by itself": the
   socket watcher and the retry notice the install, so there is no button for it), joined by one vertical
   hairline. Each step's mark is the extension's own status dot (as in "● Extension working"): ok colour done,
-  link colour for the step left, muted next; never a checkmark, a ring or a step circle. Below the steps: one bold
-  line, "Stops extensions that go for your wallets" (a paragraph there was never read; rejected), then a REAL
-  antitheft alert as a picture, captioned "An alert from the antitheft app": `vscode/media/alert-example.webp` /
-  `jetbrains/plugin/resources/icons/alert-example.png`, the app's own `AlertNotification` rendered by
-  `vscode/test/shots/popup` (same card as the README's overview.png; transparent around it, cropped to the card),
-  then one line naming the other locked kinds. Never name what is only watched (SSH keys, `.env`, cloud CLI
-  credentials). Tried and rejected: three glyph-tile points, rows of brand-icon stacks per category, and an alert
-  rebuilt from the extension's own parts. No fear headline, no "coming soon".
+  link colour for the step left, muted next; never a checkmark, a ring or a step circle. Below the steps: "What
+  is antitheft?" and the three most important things it does, each with antitheft's own glass icon (the landing's
+  `kinnector.dev/antitheft/img/app/*-glass.png`, small copies in `vscode/media/glass` /
+  `jetbrains/plugin/resources/icons/glass`): keys = locks your wallets and passwords, npm cube in chains = stops
+  extensions that go for them, anchor = catches what tries to stay. Then a REAL antitheft alert as a picture
+  (`vscode/media/alert-example.webp` / `jetbrains/plugin/resources/icons/alert-example.png`, the app's own
+  `AlertNotification` rendered by `vscode/test/shots/popup`, cropped to the card) that lands once per view, never
+  with reduced motion. Never name what is only watched (SSH keys, `.env`, cloud CLI credentials). Tried and
+  rejected: glyph-tile points, rows of brand-icon stacks, an alert rebuilt from the extension's own parts, a
+  paragraph (never read), a lone bold line, and title tricks (two beats, a typed code comment, a notification
+  header, a question). No fear headline, no "coming soon".
 - **Activity can be cleared** (Activity tab, the sidebar's Recent): a time (`antitheft.activityClearedAt`), not a
   deletion; what still needs you stays on Alerts until it is reviewed.
 

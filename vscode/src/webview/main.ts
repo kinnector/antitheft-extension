@@ -6,8 +6,6 @@ export {};
 
 interface VsCodeApi {
   postMessage(m: unknown): void;
-  getState?(): unknown;
-  setState?(s: unknown): void;
 }
 declare function acquireVsCodeApi(): VsCodeApi;
 const api = acquireVsCodeApi();
@@ -464,73 +462,47 @@ function notProtected(s: State, compact: boolean): HTMLElement {
       ),
       step("next", "Protected", "This editor switches on by itself once antitheft runs"),
     ),
-    __DEV__ ? variantSwitch() : null,
-    hook(s),
+    whatIs(s),
   );
 }
 
-// ---- what catches the eye under the setup: EXPERIMENT ------------------------------------------
-// The real antitheft alert picture lands once, as a notification would (chosen). What is still being tried is the
-// line that goes with it; a dev build shows a switch to compare four ways of saying it in the real editor:
-//   1  two beats: a quiet line before the card, the answer fades in after it lands
-//   2  a code comment, in the editor's own code font
-//   3  no title: a notification header ("● now · antitheft"), the card is the message
-//   4  a question, large and light; the card is the answer
-// The count is this editor's own extensions (none named). Nothing loops; reduced motion shows it all at once.
+// ---- under the setup: what antitheft is, then a real alert ------------------------------------
+// Three things antitheft does, each with antitheft's own glass icon (the landing's: media/glass, from
+// kinnector.dev/antitheft/img/app), then the app's real alert card landing once (media/alert-example.webp). Only
+// what antitheft does (protection-claims): locked vaults, refused programs, persistence refused or shown; never what
+// is only watched (SSH keys, .env, cloud CLI credentials).
 
-type Variant = "1" | "2" | "3" | "4";
-const VARIANTS: Variant[] = ["1", "2", "3", "4"];
-const saved = (api.getState?.() as { title?: Variant } | undefined)?.title;
-let variant: Variant = saved && VARIANTS.includes(saved) ? saved : "1";
+/** The alert card lands on the first draw of this view only; a redraw (a new state) shows it in place. */
+let landed = false;
 
-function variantSwitch(): HTMLElement {
-  const pick = (v: Variant) => {
-    variant = v;
-    api.setState?.({ ...((api.getState?.() as object | undefined) ?? {}), title: v });
-    render();
-  };
+function whatIs(s: State): HTMLElement {
+  const m = s.media;
+  const arrive = !landed;
+  landed = true;
+  const thing = (icon: string | undefined, title: string, line: string) =>
+    h(
+      "div",
+      { class: "thing" },
+      icon ? h("img", { class: "thing-icon", src: icon, alt: "" }) : null,
+      h("div", { class: "thing-text" }, h("div", { class: "thing-title" }, title), h("div", { class: "muted" }, line)),
+    );
   return h(
-    "div",
-    { class: "variant-switch" },
-    h("span", { class: "muted" }, "Title"),
-    ...VARIANTS.map((v) => h("button", { class: v === variant ? "on" : "", onclick: () => pick(v) }, v)),
+    "section",
+    { class: "what-is" },
+    h("h2", { class: "what-is-title" }, "What is antitheft?"),
+    thing(m.glassKeys, "Locks your wallets and passwords", "Only their own apps can open them"),
+    thing(m.glassCube, "Stops extensions that go for them", "Packages, AI agents and what they run too"),
+    thing(m.glassAnchor, "Catches what tries to stay", "Startup entries, services and cron jobs"),
+    m.alertExample
+      ? h("img", {
+          class: arrive ? "alert-picture arrive" : "alert-picture",
+          src: m.alertExample,
+          alt: "An antitheft alert: a program an editor extension started tried to read Google Chrome's passwords and was stopped",
+        })
+      : null,
   );
 }
 
-function hook(s: State): HTMLElement | null {
-  if (!s.media.alertExample) return null;
-  const n = userExtensions(s).length;
-  const yours = n > 1 ? `one of your ${n} extensions` : "an extension";
-  const picture = h("img", {
-    class: "alert-picture arrive",
-    src: s.media.alertExample,
-    alt: "An antitheft alert: a program an editor extension started tried to read Google Chrome's passwords and was stopped",
-  });
-  if (variant === "1")
-    return h(
-      "section",
-      { class: "hook hook-1" },
-      h("div", { class: "beat" }, `Say ${yours} goes rogue.`),
-      picture,
-      h("div", { class: "beat beat-after" }, "antitheft stops it, and tells you which one."),
-    );
-  if (variant === "2") {
-    // short enough to type on one line in a narrow sidebar; --n (set through the CSSOM, which the webview's CSP
-    // allows where a style attribute is not) is how many characters the typing steps through
-    const text = n > 1 ? `// ${n} extensions. one day:` : "// an extension. one day:";
-    const comment = h("div", { class: "code-comment" }, text);
-    comment.style.setProperty("--n", String(text.length));
-    return h("section", { class: "hook hook-2" }, comment, picture);
-  }
-  if (variant === "3")
-    return h(
-      "section",
-      { class: "hook hook-3" },
-      h("div", { class: "toast-head" }, h("span", { class: "dot now" }), h("span", {}, "now"), h("span", { class: "muted" }, "·"), h("span", { class: "muted" }, "antitheft")),
-      picture,
-    );
-  return h("section", { class: "hook hook-4" }, h("div", { class: "question" }, `What if ${yours} goes rogue?`), picture);
-}
 
 // ---- panel ----------------------------------------------------------------------------------
 
