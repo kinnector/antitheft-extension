@@ -583,7 +583,11 @@ function alertRow(i: Item, s: State, withActions: boolean): HTMLElement {
       "div",
       { class: "alert-main" },
       h("div", { class: "alert-title-line" }, h("span", { class: "alert-title card-title row-title" }, i.title), i.count && i.count > 1 ? h("span", { class: "mono alert-count" }, `x${i.count}`) : null),
-      i.target ? h("div", { class: "mono alert-target" }, i.target) : i.detail && !i.needsYou ? h("div", { class: "mono alert-target" }, i.detail) : null,
+      i.target
+        ? h("div", { class: "mono alert-target" }, i.vaultIcon ? h("img", { class: "target-icon", src: i.vaultIcon, alt: "" }) : null, i.target)
+        : i.detail && !i.needsYou
+          ? h("div", { class: "mono alert-target" }, i.detail)
+          : null,
     ),
     who ? h("div", { class: "alert-actor" }, actorIcon(i.programIcon ?? i.extIcon, who.split(" › ").pop() ?? who), h("span", { class: "alert-actor-name" }, who)) : h("div"),
     h("div", { class: "mono alert-when" }, when(i.at, s.now)),

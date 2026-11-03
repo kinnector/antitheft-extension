@@ -264,7 +264,8 @@ button.stat:hover { background: var(--tint); }
 .alert-title { font-size: 13px; font-weight: 400; color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .alert-row.new .alert-title { font-weight: 600; color: var(--vscode-foreground); }
 .alert-count { flex: none; font-size: 11px; color: var(--muted); }
-.alert-target { margin-top: 2px; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alert-target { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.target-icon { width: 16px; height: 16px; flex: none; object-fit: contain; }
 .alert-actor { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .alert-actor-name { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actor-icon { width: 20px; height: 20px; flex: none; object-fit: contain; }
