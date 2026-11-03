@@ -62,13 +62,13 @@ Rules that matter:
   socket watcher and the retry notice the install, so there is no button for it), joined by one vertical
   hairline. Each step's mark is the extension's own status dot (as in "● Extension working"): ok colour done,
   link colour for the step left, muted next; never a checkmark, a ring or a step circle. Below the steps: "Why
-  antitheft, in <editor>" (one plain paragraph: what antitheft is and why it is in the editor), then one EXAMPLE
-  alert, tagged "Example" with a dashed edge so it never reads as a real one, built from the alerts' own parts and
-  words (Blocked, "Color Theme Studio tried to read your MetaMask wallet", MetaMask's real mark from
-  `media/brands` / `icons/brands`, the app's dashed initial for the made-up extension, nothing clickable), then one
-  line naming the other locked kinds. The made-up extension is named after no real one. Never name what is only
-  watched (SSH keys, `.env`, cloud CLI credentials). Tried and rejected: three glyph-tile points, and rows of
-  brand-icon stacks per category. No fear headline, no "coming soon".
+  antitheft, in <editor>" (one plain paragraph: what antitheft is and why it is in the editor), then a REAL
+  antitheft alert as a picture, captioned "An alert from the antitheft app": `vscode/media/alert-example.webp` /
+  `jetbrains/plugin/resources/icons/alert-example.png`, the app's own `AlertNotification` rendered by
+  `vscode/test/shots/popup` (same card as the README's overview.png; transparent around it, cropped to the card),
+  then one line naming the other locked kinds. Never name what is only watched (SSH keys, `.env`, cloud CLI
+  credentials). Tried and rejected: three glyph-tile points, rows of brand-icon stacks per category, and an alert
+  rebuilt from the extension's own parts. No fear headline, no "coming soon".
 - **Activity can be cleared** (Activity tab, the sidebar's Recent): a time (`antitheft.activityClearedAt`), not a
   deletion; what still needs you stays on Alerts until it is reviewed.
 

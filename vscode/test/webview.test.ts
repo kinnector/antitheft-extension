@@ -61,7 +61,7 @@ function state(surface: "sidebar" | "panel", standing: string, overrides: Record
     extensions: { attention: rows.attention.map(icon), quiet: rows.quiet.map(icon) },
     vaults,
     editor: "Visual Studio Code",
-    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", brand_metamask: "m/b/metamask.svg", brand_chrome: "m/b/chrome.svg", brand_npm: "m/b/npm.svg" },
+    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", alertExample: "m/alert-example.webp" },
     now: 1200,
     ...overrides,
   };
@@ -221,14 +221,11 @@ test("not installed: almost there, one step left, what switches on; nothing else
     assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, "Install antitheft");
     r.click("Get antitheft");
     assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" });
-    // why it is here, then one example alert, tagged as one, in the alerts' own parts
+    // why it is here, then a real antitheft alert as a picture, never one rebuilt from the extension's parts
     assert.equal(r.text(".why-title")[0], "Why antitheft, in Visual Studio Code");
-    assert.equal(r.text(".sample-tag")[0], "Example");
-    assert.equal(r.text(".sample .sev")[0], "Blocked");
-    assert.equal(r.text(".sample-title")[0], "Color Theme Studio tried to read your MetaMask wallet");
-    assert.equal(r.root.querySelector(".sample .target-icon")?.getAttribute("src"), "m/b/metamask.svg");
-    assert.equal(r.text(".sample .actor-icon--unknown")[0], "C", "a made-up extension has no icon: the app's dashed initial");
-    assert.equal(r.root.querySelectorAll(".sample button").length, 0, "nothing in the example can be clicked");
+    assert.equal(r.root.querySelector(".sample img")?.getAttribute("src"), "m/alert-example.webp");
+    assert.equal(r.text(".sample figcaption")[0], "An alert from the antitheft app");
+    assert.equal(r.root.querySelectorAll(".sample .sev, .sample button").length, 0);
     assert.match(r.text(".also")[0], /browser passwords/);
     assert.doesNotMatch(r.root.textContent ?? "", /SSH|\.env/, "only what antitheft locks is named");
     assert.equal(r.root.querySelectorAll("h2, .soon").length, 0, "no warning headline, no coming soon");

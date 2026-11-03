@@ -338,9 +338,8 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                         "The app that keeps your wallets and saved passwords yours, on this computer", true,
                         button("Get antitheft", () -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT)))));
                     p.add(left(step(muted, null, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
-                    // why it is here, then an EXAMPLE alert, tagged as one (dashed edge), in the alerts' own words; the
-                    // plugin is made up. Only what antitheft LOCKS is named: SSH keys, .env and cloud CLI credentials
-                    // are only watched.
+                    // why it is here, then a real antitheft alert as a picture. Only what antitheft LOCKS is named: SSH
+                    // keys, .env and cloud CLI credentials are only watched.
                     p.add(Box.createVerticalStrut(JBUI.scale(12)));
                     JBLabel why = new JBLabel("Why antitheft, in " + s.ideName());
                     why.setFont(JBFont.label().asBold());
@@ -367,60 +366,24 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         }
 
-        /** MetaMask's official colour mark (icons/brands) at 16 px; null when it does not load. */
-        private static Icon metamask() {
-            try {
-                Icon svg = IconLoader.getIcon("/icons/brands/metamask.svg", AntitheftToolWindowFactory.class);
-                return svg.getIconWidth() > 0 ? com.intellij.util.IconUtil.scale(svg, null, JBUI.scale(16) / (float) svg.getIconWidth()) : null;
-            } catch (RuntimeException e) {
-                return null;
-            }
-        }
-
-        /** An EXAMPLE alert, tagged as one with a dashed edge, in the alerts' parts and words: the severity chip, the
-         *  sentence, the vault with its real icon, the plugin (made up, so the app's dashed initial), when. Nothing in
-         *  it can be clicked. */
+        /** A real antitheft alert as a picture (icons/alert-example.png: the app's own alert card, rendered at 2x for the
+         *  README's demo attack), 300 px wide, with a caption; never one rebuilt from the plugin's parts. */
         private static JComponent sampleAlert() {
-            Color line = JBColor.border();
-            JPanel card = column();
-            card.setBorder(BorderFactory.createDashedBorder(line, JBUI.scale(4), JBUI.scale(3)));
-            JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
-            bar.setOpaque(false);
-            bar.setBorder(JBUI.Borders.empty(8, 12));
-            JBLabel tag = new JBLabel("Example", UIUtil.ComponentStyle.SMALL);
-            tag.setBorder(BorderFactory.createCompoundBorder(JBUI.Borders.customLine(line, 1), JBUI.Borders.empty(0, 4)));
-            bar.add(tag);
-            bar.add(new JBLabel("What an alert looks like", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER));
-            card.add(left(bar));
-            JPanel body = column();
-            body.setBorder(BorderFactory.createCompoundBorder(JBUI.Borders.customLineTop(line), JBUI.Borders.empty(12)));
-            JPanel top = new JPanel(new BorderLayout());
-            top.setOpaque(false);
-            top.add(chip("Blocked", OK, null), BorderLayout.WEST);
-            top.add(new JBLabel("just now", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER), BorderLayout.EAST);
-            body.add(left(top));
-            body.add(Box.createVerticalStrut(JBUI.scale(8)));
-            JComponent title = wrap("Color Theme Studio tried to read your MetaMask wallet");
-            title.setFont(JBFont.label().asBold());
-            body.add(left(title));
-            body.add(Box.createVerticalStrut(JBUI.scale(8)));
-            body.add(left(new JBLabel("MetaMask", metamask(), JBLabel.LEFT)));
-            body.add(Box.createVerticalStrut(JBUI.scale(8)));
-            JBLabel initial = new JBLabel("C");
-            initial.setHorizontalAlignment(JBLabel.CENTER);
-            initial.setForeground(UIUtil.getContextHelpForeground());
-            initial.setBorder(BorderFactory.createDashedBorder(line, JBUI.scale(2), JBUI.scale(2)));
-            initial.setPreferredSize(new Dimension(JBUI.scale(20), JBUI.scale(20)));
-            JPanel actor = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(8), 0));
-            actor.setOpaque(false);
-            actor.add(initial);
-            actor.add(new JBLabel("Color Theme Studio"));
-            body.add(left(actor));
-            body.add(Box.createVerticalStrut(JBUI.scale(8)));
-            body.add(left(new JBLabel("<html><body style='width: 240px'>Refused before anything was read. Disable or uninstall the plugin right from the alert.</body></html>", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
-            card.add(left(body));
-            card.setMaximumSize(new Dimension(JBUI.scale(420), Integer.MAX_VALUE));
-            return card;
+            JPanel p = column();
+            java.net.URL url = AntitheftToolWindowFactory.class.getResource("/icons/alert-example.png");
+            if (url != null) {
+                java.awt.Image img = new javax.swing.ImageIcon(url).getImage();
+                int w = img.getWidth(null), h = img.getHeight(null);
+                if (w > 0 && h > 0) {
+                    int width = JBUI.scale(300);
+                    JBLabel pic = new JBLabel(new javax.swing.ImageIcon(img.getScaledInstance(width, Math.round(h * (width / (float) w)), java.awt.Image.SCALE_SMOOTH)));
+                    pic.setToolTipText("An antitheft alert: a program a plugin started tried to read Google Chrome's passwords and was stopped");
+                    p.add(left(pic));
+                    p.add(Box.createVerticalStrut(JBUI.scale(4)));
+                }
+            }
+            p.add(left(new JBLabel("An alert from the antitheft app", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
+            return p;
         }
 
         /** One setup step: the status dot as its mark with the hairline down to the next step (none on the last:

@@ -151,18 +151,13 @@ button.stat:hover { background: var(--tint); }
 .explain.wide h2 { font-size: 24px; font-weight: 500; }
 .explain p { margin: 0; color: var(--vscode-foreground); }
 
-/* not installed, below the steps: why antitheft is here, then an example of what it is for. The example is an
-   alert card in the alerts' own parts, with a dashed edge and an "Example" tag so it never reads as a real one. */
+/* not installed, below the steps: why antitheft is here, then a real antitheft alert as a picture (the app's own
+   card, transparent around it, so it sits on any theme), at most its own size. */
 .why { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
 .why-title { font-weight: 600; }
-.sample { border: 1px dashed var(--line); border-radius: var(--radius); background: var(--card); }
-.sample-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px dashed var(--line); font-size: 12px; }
-.sample-tag { padding: 0 4px; border: 1px solid var(--line); border-radius: var(--radius-in); color: var(--vscode-foreground); }
-.sample-alert { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
-.sample-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.sample-title { font-weight: 600; }
-.sample-alert .alert-target { margin-top: 0; }
-.sample-detail { font-size: 12px; }
+.sample { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.sample img { display: block; width: 100%; max-width: 432px; height: auto; }
+.sample figcaption { font-size: 12px; }
 .also { font-size: 12px; }
 
 /* not installed: a setup that is mostly done. Each step's mark is the extension's own status dot (the one in

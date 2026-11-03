@@ -447,11 +447,9 @@ function notProtected(s: State, compact: boolean): HTMLElement {
       h("span", { class: "step-mark" }, h("span", { class: `dot ${state === "done" ? "ok" : state === "now" ? "now" : "muted"}` })),
       h("div", { class: "step-text" }, h("div", { class: "step-title" }, t), h("div", { class: "muted" }, d), ...extra),
     );
-  // Why it is here, then the moment it is for: an EXAMPLE alert, labelled as one, in the alerts' own parts and words
-  // (the editor guard's title and detail from model.ts, the severity label, the vault's real icon, the app's dashed
-  // initial for an extension without one). The extension is made up and named after no real one. Only what antitheft
-  // LOCKS is named (the README's "What it protects"): SSH keys, .env and cloud CLI credentials are only watched.
-  const example: Item = { key: "example", at: s.now, tone: "critical", label: "BLOCKED", severity: "blocked", title: "", detail: "", needsYou: false };
+  // Why it is here, then the moment it is for: a real antitheft alert, as a picture (media/alert-example.webp, the app's
+  // own AlertNotification rendered by test/shots/popup for the README's demo attack), never a rebuilt one. Only what
+  // antitheft LOCKS is named (the README's "What it protects"): SSH keys, .env and cloud CLI credentials are only watched.
   const why = h(
     "div",
     { class: "why" },
@@ -462,20 +460,14 @@ function notProtected(s: State, compact: boolean): HTMLElement {
       "Extensions and AI agents run with the same access you have, so any of them can read your wallets and saved passwords. antitheft locks those to their own apps and tells you which extension tried.",
     ),
   );
-  const sample = h(
-    "section",
-    { class: "sample", "aria-label": "Example alert" },
-    h("div", { class: "sample-bar" }, h("span", { class: "sample-tag" }, "Example"), h("span", { class: "muted" }, "What an alert looks like")),
-    h(
-      "div",
-      { class: "sample-alert" },
-      h("div", { class: "sample-top" }, severityLabel(example), h("span", { class: "mono alert-when" }, "just now")),
-      h("div", { class: "sample-title" }, "Color Theme Studio tried to read your MetaMask wallet"),
-      h("div", { class: "mono alert-target" }, s.media.brand_metamask ? h("img", { class: "target-icon", src: s.media.brand_metamask, alt: "" }) : null, "MetaMask"),
-      h("div", { class: "alert-actor" }, actorIcon(null, "Color Theme Studio"), h("span", { class: "alert-actor-name" }, "Color Theme Studio")),
-      h("div", { class: "muted sample-detail" }, "Refused before anything was read. Disable or uninstall the extension right from the alert."),
-    ),
-  );
+  const sample = s.media.alertExample
+    ? h(
+        "figure",
+        { class: "sample" },
+        h("img", { src: s.media.alertExample, alt: "An antitheft alert: a program an editor extension started tried to read Google Chrome's passwords and was stopped" }),
+        h("figcaption", { class: "muted" }, "An alert from the antitheft app"),
+      )
+    : null;
   const also = h(
     "div",
     { class: "muted also" },
