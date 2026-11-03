@@ -208,14 +208,19 @@ test("nothing needs you: the quiet standing and an empty Alerts screen", () => {
   assert.equal(old.text(".hero-sub")[0], "Extensions can't reach your vaults", "an antitheft with no vault list");
 });
 
-test("not installed: why, what antitheft adds, install coming; nothing else", () => {
+test("not installed: almost there, one step left, what switches on; nothing else", () => {
   for (const surface of ["sidebar", "panel"] as const) {
     const r = render(surface, state(surface, "not-installed"), "vscode-light");
-    assert.equal(r.text(".standing-title")[0], "Not protected");
-    assert.deepEqual(r.text(".cover"), ["Extension waiting", "antitheft not found"]);
-    assert.equal(r.text("h2")[0], "Visual Studio Code can't keep extensions away from your wallets");
+    assert.equal(r.text(".standing-title")[0], "Almost there");
+    assert.equal(r.text(".hero-sub")[0], "One step left: install antitheft");
+    assert.deepEqual(r.text(".cover"), [], "the steps say it; no not-found chips");
+    assert.deepEqual(r.text(".step-title"), ["Added to Visual Studio Code", "Install antitheft", "Protected"]);
+    assert.equal(r.root.querySelectorAll(".step--done").length, 1);
+    assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, "Install antitheft");
+    r.click("Get antitheft");
+    assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" });
     assert.deepEqual(r.text(".point-title"), ["Blocks extensions", "Stops what they start", "Names the culprit"]);
-    assert.match(r.text(".soon")[0], /coming soon/);
+    assert.equal(r.root.querySelectorAll("h2, .soon").length, 0, "no warning headline, no coming soon");
     assert.equal(r.root.querySelectorAll(".tab, .card").length, 0, "no alerts or tabs before antitheft protects");
   }
 });

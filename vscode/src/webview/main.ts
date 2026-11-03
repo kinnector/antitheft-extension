@@ -242,7 +242,7 @@ function look(s: State): Look {
   const p = s.protection;
   const m = s.media;
   if (p.standing === "checking") return { icon: m.offline, title: "Checking", sub: "Looking for antitheft on this computer", tone: "muted" };
-  if (p.standing === "not-installed") return { icon: m.offline, title: "Not protected", sub: "antitheft isn't installed", tone: "muted" };
+  if (p.standing === "not-installed") return { icon: m.offline, title: "Almost there", sub: "One step left: install antitheft", tone: "muted" };
   if (p.standing === "not-running") return { icon: m.offline, title: "Not running", sub: "antitheft's service is stopped", tone: "warn" };
   if (p.standing === "paused") {
     return p.pausedBy === "license"
@@ -311,7 +311,8 @@ function hero(s: State): HTMLElement {
       h("div", { class: "hero-text" }, h("div", { class: "hero-title standing-title" }, l.title), h("div", { class: "hero-sub muted" }, l.sub)),
       needs ? h("span", { class: "hero-go" }, "Show", h("span", { class: "chev" }, "›")) : null,
     ),
-    coverage(s),
+    // before antitheft is installed the setup steps say where things stand; the chips would only repeat it
+    s.protection.standing === "not-installed" ? null : coverage(s),
     l.action ? button(l.action, (e?: Event) => (e?.stopPropagation(), openApp("/")), "link", "external") : null,
   );
 }
@@ -437,16 +438,35 @@ function notProtected(s: State, compact: boolean): HTMLElement {
   const p = s.protection.standing;
   if (p === "not-running") return h("div", { class: "explain" }, h("p", {}, "Start antitheft, and this editor is guarded again"), button("Check again", () => send({ type: "recheck" }), "secondary"));
   if (p === "checking") return h("div");
+  // Not installed: a setup that is mostly done. The extension is in; antitheft is the one step left; the editor
+  // switches on by itself once it runs (the socket watcher and the retry notice it, no button needed).
+  const step = (state: "done" | "now" | "next", t: string, d: string, ...extra: (HTMLElement | null)[]) =>
+    h(
+      "li",
+      { class: `step step--${state}` },
+      h("span", { class: "step-mark" }, state === "done" ? glyph("check", "step-glyph") : null),
+      h("div", { class: "step-text" }, h("div", { class: "step-title" }, t), h("div", { class: "muted" }, d), ...extra),
+    );
   const point = (t: string, d: string, g: string) => h("div", { class: "point" }, tile(null, g), h("div", {}, h("div", { class: "point-title" }, t), h("div", { class: "muted" }, d)));
   return h(
     "div",
-    { class: compact ? "explain" : "explain wide" },
-    h("h2", {}, `${s.editor} can't keep extensions away from your wallets`),
-    h("p", {}, "Every extension runs with the same access you have. A malicious one can download a program that reads your wallets, saved passwords and keys. antitheft stops that on your computer itself, and tells you which extension was behind it."),
+    { class: compact ? "explain setup" : "explain setup wide" },
+    h(
+      "ol",
+      { class: "steps" },
+      step("done", `Added to ${s.editor}`, "The extension is in and ready"),
+      step(
+        "now",
+        "Install antitheft",
+        "The app that keeps your wallets and saved passwords yours, on this computer",
+        h("div", { class: "step-actions" }, button("Get antitheft", () => send({ type: "getAntitheft" }), "primary", "external")),
+      ),
+      step("next", "Protected", "This editor switches on by itself once antitheft runs"),
+    ),
+    h("div", { class: "setup-label muted" }, "What switches on"),
     point("Blocks extensions", "An extension's own code is refused when it reaches for a vault", "lock"),
     point("Stops what they start", "A program an extension downloads is stopped when it goes for your wallets", "stop"),
     point("Names the culprit", "Alerts say which extension, so you can disable or remove it here", "puzzle"),
-    h("div", { class: "soon" }, glyph("check", "soon-glyph"), "Installing antitheft right from the editor is coming soon"),
   );
 }
 

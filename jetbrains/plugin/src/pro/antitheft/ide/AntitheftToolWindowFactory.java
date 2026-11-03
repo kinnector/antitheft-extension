@@ -49,6 +49,8 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
     static final Color BAD = JBColor.namedColor("Label.errorForeground", new JBColor(0xC7222D, 0xFF5261));
     static final Color WARN = JBColor.namedColor("Component.warningFocusColor", new JBColor(0xB27D00, 0xE2B341));
     static final Color OK = new JBColor(0x208A3C, 0x57965C);
+    /** Where "Get antitheft" leads while antitheft is not installed. */
+    static final String GET_ANTITHEFT = "https://antitheft.pro";
 
     /** The stripe shows the tool window's id ("antitheft") unless told otherwise; the product's name is Antitheft. */
     @Override
@@ -140,7 +142,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             Color muted = UIUtil.getContextHelpForeground();
             return switch (s.standing) {
                 case CHECKING -> new Look(OFFLINE, "Checking", "Looking for antitheft on this computer", muted, null);
-                case NOT_INSTALLED -> new Look(OFFLINE, "Not protected", "antitheft isn't installed", muted, null);
+                case NOT_INSTALLED -> new Look(OFFLINE, "Almost there", "One step left: install antitheft", muted, null);
                 case NOT_RUNNING -> new Look(OFFLINE, "Not running", "antitheft's service is stopped", WARN, null);
                 case PAUSED -> "license".equals(s.pausedBy)
                     ? new Look(PAUSED, "Watching only", "Nothing is blocked without a licence", WARN, "Get a licence")
@@ -180,8 +182,11 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 case CHECKING -> chip("antitheft starting", UIUtil.getContextHelpForeground(), "Looking for antitheft on this computer.");
                 case NOT_INSTALLED -> chip("antitheft not found", UIUtil.getContextHelpForeground(), "antitheft isn't installed on this computer.");
             });
-            text.add(Box.createVerticalStrut(JBUI.scale(8)));
-            text.add(left(chips));
+            // before antitheft is installed the setup steps say where things stand; the chips would only repeat it
+            if (s.standing != AntitheftService.Standing.NOT_INSTALLED) {
+                text.add(Box.createVerticalStrut(JBUI.scale(8)));
+                text.add(left(chips));
+            }
             if (l.action() != null) {
                 text.add(Box.createVerticalStrut(JBUI.scale(8)));
                 text.add(left(button(l.action(), () -> s.openApp("/"))));
@@ -323,17 +328,20 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                     p.add(left(button("Check again", () -> com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService().submit(s::recheck))));
                 }
                 case NOT_INSTALLED -> {
-                    JBLabel h = new JBLabel(s.ideName() + " can't keep plugins away from your wallets");
-                    h.setFont(JBFont.label().asBold().biggerOn(2));
-                    p.add(left(h));
-                    p.add(Box.createVerticalStrut(JBUI.scale(6)));
-                    p.add(left(wrap("Every plugin runs with the same access you have. A malicious one can read your wallets, saved passwords and keys, or download a program that does. antitheft stops that on your computer itself, and tells you which plugin was behind it.")));
-                    p.add(Box.createVerticalStrut(JBUI.scale(8)));
-                    p.add(left(point(AllIcons.Ide.Readonly, "Blocks plugins", "A plugin's own code is refused when it reaches for a vault.")));
-                    p.add(left(point(AllIcons.Actions.Suspend, "Stops what they start", "A program a plugin downloads is stopped when it goes for your wallets.")));
-                    p.add(left(point(AllIcons.Nodes.Plugin, "Names the culprit", "Alerts say which plugin, so you can disable it here.")));
-                    p.add(Box.createVerticalStrut(JBUI.scale(8)));
-                    p.add(left(new JBLabel("Installing antitheft right from the IDE is coming soon.", AllIcons.General.Information, JBLabel.LEFT)));
+                    // a setup that is mostly done: the plugin is in, antitheft is the one step left, the IDE
+                    // switches on by itself once it runs
+                    p.add(Box.createVerticalStrut(JBUI.scale(4)));
+                    p.add(left(step(AllIcons.Actions.Checked, "Added to " + s.ideName(), "The plugin is in and ready", false, null)));
+                    p.add(left(step(AllIcons.General.ArrowRight, "Install antitheft",
+                        "The app that keeps your wallets and saved passwords yours, on this computer", true,
+                        button("Get antitheft", () -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT)))));
+                    p.add(left(step(AllIcons.General.InspectionsOKEmpty, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
+                    p.add(Box.createVerticalStrut(JBUI.scale(12)));
+                    p.add(left(new JBLabel("What switches on", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
+                    p.add(Box.createVerticalStrut(JBUI.scale(4)));
+                    p.add(left(point(AllIcons.Ide.Readonly, "Blocks plugins", "A plugin's own code is refused when it reaches for a vault")));
+                    p.add(left(point(AllIcons.Actions.Suspend, "Stops what they start", "A program a plugin downloads is stopped when it goes for your wallets")));
+                    p.add(left(point(AllIcons.Nodes.Plugin, "Names the culprit", "Alerts say which plugin, so you can disable it here")));
                 }
                 default -> { }
             }
@@ -360,6 +368,28 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             h.setFont(JBFont.label().asBold());
             t.add(left(h));
             t.add(left(new JBLabel(detail, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
+            row.add(t, BorderLayout.CENTER);
+            return row;
+        }
+
+        /** One setup step: a mark, a title (bold only on the step left), a line, and that step's button. */
+        private static JComponent step(Icon icon, String title, String detail, boolean now, JComponent action) {
+            JPanel row = new JPanel(new BorderLayout(JBUI.scale(8), 0));
+            row.setOpaque(false);
+            row.setBorder(JBUI.Borders.empty(4, 0, 8, 0));
+            JBLabel mark = new JBLabel(icon);
+            mark.setVerticalAlignment(JBLabel.TOP);
+            row.add(mark, BorderLayout.WEST);
+            JPanel t = column();
+            JBLabel h = new JBLabel(title);
+            if (now) h.setFont(JBFont.label().asBold());
+            else h.setForeground(UIUtil.getContextHelpForeground());
+            t.add(left(h));
+            t.add(left(new JBLabel(detail, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
+            if (action != null) {
+                t.add(Box.createVerticalStrut(JBUI.scale(8)));
+                t.add(left(action));
+            }
             row.add(t, BorderLayout.CENTER);
             return row;
         }

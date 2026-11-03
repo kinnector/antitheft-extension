@@ -25,8 +25,8 @@ export class StatusBar implements vscode.Disposable {
         this.item.tooltip = "antitheft: checking";
         break;
       case "not-installed":
-        this.item.text = "$(shield) antitheft: not protected";
-        this.item.tooltip = "antitheft is not installed on this computer. Extensions can read your wallets and keys.";
+        this.item.text = "$(shield) antitheft: one step left";
+        this.item.tooltip = "Almost there: install antitheft and this editor is protected.";
         break;
       case "not-running":
         this.item.text = "$(circle-slash) antitheft";

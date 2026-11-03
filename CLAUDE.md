@@ -55,6 +55,12 @@ Rules that matter:
   remembers those (globalState / PropertiesComponent `antitheft.reviewed`). The status row and the status bar
   lead to the alerts; under the status: "Extension working" and "antitheft installed / paused / not running /
   starting / not found". No progress bar on the vaults.
+- **Not installed is a setup that is almost done, never a warning.** The standing reads "Almost there / One step
+  left: install antitheft" (status bar "antitheft: one step left"), no coverage chips; below it three steps:
+  added to the editor (done), Install antitheft (the step left, "Get antitheft" opens the fixed
+  `GET_ANTITHEFT` address in the host, never one the webview names), Protected ("switches on by itself": the
+  socket watcher and the retry notice the install, so there is no button for it). Then what switches on. No fear
+  headline, no "coming soon".
 - **Activity can be cleared** (Activity tab, the sidebar's Recent): a time (`antitheft.activityClearedAt`), not a
   deletion; what still needs you stays on Alerts until it is reviewed.
 

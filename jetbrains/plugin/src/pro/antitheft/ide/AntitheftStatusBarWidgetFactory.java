@@ -64,7 +64,7 @@ public final class AntitheftStatusBarWidgetFactory implements StatusBarWidgetFac
             long needs = s.items.stream().filter(Model.Item::needsYou).count();
             return switch (s.standing) {
                 case CHECKING -> "antitheft…";
-                case NOT_INSTALLED -> "antitheft: not protected";
+                case NOT_INSTALLED -> "antitheft: one step left";
                 case NOT_RUNNING -> "antitheft: not running";
                 case PAUSED -> needs > 0 ? "antitheft paused · " + needs + (needs == 1 ? " alert" : " alerts") : "antitheft paused";
                 case PROTECTED -> needs > 0 ? needs + (needs == 1 ? " alert" : " alerts") : "antitheft";

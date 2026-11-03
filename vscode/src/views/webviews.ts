@@ -31,6 +31,8 @@ const DISMISSED_KEY = "antitheft.reviewed";
 const MAX_DISMISSED = 500;
 /** Activity cleared up to this time (unix seconds): Activity and the sidebar's Recent leave out what came before it. */
 const CLEARED_KEY = "antitheft.activityClearedAt";
+/** Where "Get antitheft" leads while antitheft is not installed. */
+const GET_ANTITHEFT = "https://antitheft.pro";
 
 const IDE_ICONS: [RegExp, string][] = [
   [/cursor/i, "cursor.png"],
@@ -139,6 +141,10 @@ export class Views implements vscode.Disposable, vscode.WebviewViewProvider {
       }
       case "recheck":
         await this.session.recheck();
+        break;
+      case "getAntitheft":
+        // a fixed address, never one the webview names
+        await vscode.env.openExternal(vscode.Uri.parse(GET_ANTITHEFT));
         break;
       case "disable":
         if (m.id) await disableExtension(m.id, this.exts.get(m.id.toLowerCase())?.name ?? m.id);
