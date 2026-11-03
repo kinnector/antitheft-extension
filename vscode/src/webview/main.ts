@@ -444,7 +444,7 @@ function notProtected(s: State, compact: boolean): HTMLElement {
     h(
       "li",
       { class: `step step--${state}` },
-      h("span", { class: "step-mark" }, state === "done" ? glyph("check", "step-glyph") : null),
+      h("span", { class: "step-mark" }, h("span", { class: `dot ${state === "done" ? "ok" : state === "now" ? "now" : "muted"}` })),
       h("div", { class: "step-text" }, h("div", { class: "step-title" }, t), h("div", { class: "muted" }, d), ...extra),
     );
   const point = (t: string, d: string, g: string) => h("div", { class: "point" }, tile(null, g), h("div", {}, h("div", { class: "point-title" }, t), h("div", { class: "muted" }, d)));

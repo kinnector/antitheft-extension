@@ -331,11 +331,13 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                     // a setup that is mostly done: the plugin is in, antitheft is the one step left, the IDE
                     // switches on by itself once it runs
                     p.add(Box.createVerticalStrut(JBUI.scale(4)));
-                    p.add(left(step(AllIcons.Actions.Checked, "Added to " + s.ideName(), "The plugin is in and ready", false, null)));
-                    p.add(left(step(AllIcons.General.ArrowRight, "Install antitheft",
+                    // each step's mark is the status dot the chips use; one hairline joins them
+                    Color muted = UIUtil.getContextHelpForeground();
+                    p.add(left(step(OK, OK, "Added to " + s.ideName(), "The plugin is in and ready", false, null)));
+                    p.add(left(step(JBUI.CurrentTheme.Link.Foreground.ENABLED, JBColor.border(), "Install antitheft",
                         "The app that keeps your wallets and saved passwords yours, on this computer", true,
                         button("Get antitheft", () -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT)))));
-                    p.add(left(step(AllIcons.General.InspectionsOKEmpty, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
+                    p.add(left(step(muted, null, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
                     p.add(Box.createVerticalStrut(JBUI.scale(12)));
                     p.add(left(new JBLabel("What switches on", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
                     p.add(Box.createVerticalStrut(JBUI.scale(4)));
@@ -372,16 +374,31 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return row;
         }
 
-        /** One setup step: a mark, a title (bold only on the step left), a line, and that step's button. */
-        private static JComponent step(Icon icon, String title, String detail, boolean now, JComponent action) {
-            JPanel row = new JPanel(new BorderLayout(JBUI.scale(8), 0));
+        /** One setup step: the status dot as its mark with the hairline down to the next step (none on the last:
+         *  {@code line} null), a title (bold only on the step left), a line, and that step's button. */
+        private static JComponent step(Color dot, Color line, String title, String detail, boolean now, JComponent action) {
+            JPanel row = new JPanel(new BorderLayout(JBUI.scale(12), 0));
             row.setOpaque(false);
-            row.setBorder(JBUI.Borders.empty(4, 0, 8, 0));
-            JBLabel mark = new JBLabel(icon);
-            mark.setVerticalAlignment(JBLabel.TOP);
+            JBLabel h = new JBLabel(title);
+            JComponent mark = new JComponent() {
+                @Override
+                protected void paintComponent(java.awt.Graphics g) {
+                    java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                    g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                    int d = JBUI.scale(8), cx = getWidth() / 2, cy = h.getPreferredSize().height / 2;
+                    g2.setColor(dot);
+                    g2.fillOval(cx - d / 2, cy - d / 2, d, d);
+                    if (line != null) {
+                        g2.setColor(line);
+                        g2.fillRect(cx, cy + d / 2 + JBUI.scale(4), Math.max(1, JBUI.scale(1)), getHeight());
+                    }
+                    g2.dispose();
+                }
+            };
+            mark.setPreferredSize(new Dimension(JBUI.scale(12), 0));
             row.add(mark, BorderLayout.WEST);
             JPanel t = column();
-            JBLabel h = new JBLabel(title);
+            t.setBorder(JBUI.Borders.emptyBottom(16));
             if (now) h.setFont(JBFont.label().asBold());
             else h.setForeground(UIUtil.getContextHelpForeground());
             t.add(left(h));

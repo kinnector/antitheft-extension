@@ -216,6 +216,8 @@ test("not installed: almost there, one step left, what switches on; nothing else
     assert.deepEqual(r.text(".cover"), [], "the steps say it; no not-found chips");
     assert.deepEqual(r.text(".step-title"), ["Added to Visual Studio Code", "Install antitheft", "Protected"]);
     assert.equal(r.root.querySelectorAll(".step--done").length, 1);
+    assert.deepEqual([...r.root.querySelectorAll(".step-mark .dot")].map((d) => d.className), ["dot ok", "dot now", "dot muted"], "the status dot as each step's mark");
+    assert.equal(r.root.querySelectorAll(".step-mark svg").length, 0, "no check glyph");
     assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, "Install antitheft");
     r.click("Get antitheft");
     assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" });

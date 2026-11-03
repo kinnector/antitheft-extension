@@ -59,8 +59,10 @@ Rules that matter:
   left: install antitheft" (status bar "antitheft: one step left"), no coverage chips; below it three steps:
   added to the editor (done), Install antitheft (the step left, "Get antitheft" opens the fixed
   `GET_ANTITHEFT` address in the host, never one the webview names), Protected ("switches on by itself": the
-  socket watcher and the retry notice the install, so there is no button for it). Then what switches on. No fear
-  headline, no "coming soon".
+  socket watcher and the retry notice the install, so there is no button for it), joined by one vertical
+  hairline. Each step's mark is the extension's own status dot (as in "● Extension working"): ok colour done,
+  link colour for the step left, muted next; never a checkmark, a ring or a step circle. Then what switches on.
+  No fear headline, no "coming soon".
 - **Activity can be cleared** (Activity tab, the sidebar's Recent): a time (`antitheft.activityClearedAt`), not a
   deletion; what still needs you stays on Alerts until it is reviewed.
 
