@@ -214,11 +214,9 @@ test("not installed: almost there, one step left, what switches on; nothing else
     assert.equal(r.text(".standing-title")[0], "Almost there");
     assert.equal(r.text(".hero-sub")[0], "One step left: install antitheft");
     assert.deepEqual(r.text(".cover"), [], "the steps say it; no not-found chips");
-    assert.equal(r.text(".setup-count")[0], "1 of 2 done");
-    assert.deepEqual(r.text(".setup-title"), ["Added to Visual Studio Code", "Install antitheft"]);
-    assert.deepEqual(r.text(".setup-row .pill"), ["Done"], "the extension's own dot-and-word pill, on the done step only");
-    assert.equal(r.root.querySelectorAll(".setup svg:not(.btn-glyph)").length, 3, "no step marks: only the three points' tiles draw glyphs");
-    assert.match(r.text(".setup-after")[0], /switches on by itself/);
+    assert.deepEqual(r.text(".step-title"), ["Added to Visual Studio Code", "Install antitheft", "Protected"]);
+    assert.equal(r.root.querySelectorAll(".step--done").length, 1);
+    assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, "Install antitheft");
     r.click("Get antitheft");
     assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" });
     assert.deepEqual(r.text(".point-title"), ["Blocks extensions", "Stops what they start", "Names the culprit"]);

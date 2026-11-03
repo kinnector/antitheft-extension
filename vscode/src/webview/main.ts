@@ -438,37 +438,31 @@ function notProtected(s: State, compact: boolean): HTMLElement {
   const p = s.protection.standing;
   if (p === "not-running") return h("div", { class: "explain" }, h("p", {}, "Start antitheft, and this editor is guarded again"), button("Check again", () => send({ type: "recheck" }), "secondary"));
   if (p === "checking") return h("div");
-  // Not installed: a setup that is mostly done, drawn with the extension's own parts (a card, rows, the dot-and-word
-  // pill the vaults use), no marks of its own. The extension is in; antitheft is the one step left; the editor
+  // Not installed: a setup that is mostly done. The extension is in; antitheft is the one step left; the editor
   // switches on by itself once it runs (the socket watcher and the retry notice it, no button needed).
-  const step = (t: string, d: string, end: HTMLElement | null, action: HTMLElement | null = null) =>
+  const step = (state: "done" | "now" | "next", t: string, d: string, ...extra: (HTMLElement | null)[]) =>
     h(
       "li",
-      { class: "setup-row" },
-      h("div", { class: "row-title" }, h("span", { class: "setup-title" }, t), h("span", { class: "muted setup-detail" }, d), action),
-      end,
+      { class: `step step--${state}` },
+      h("span", { class: "step-mark" }, state === "done" ? glyph("check", "step-glyph") : null),
+      h("div", { class: "step-text" }, h("div", { class: "step-title" }, t), h("div", { class: "muted" }, d), ...extra),
     );
   const point = (t: string, d: string, g: string) => h("div", { class: "point" }, tile(null, g), h("div", {}, h("div", { class: "point-title" }, t), h("div", { class: "muted" }, d)));
   return h(
     "div",
     { class: compact ? "explain setup" : "explain setup wide" },
     h(
-      "section",
-      { class: "panel-card" },
-      h("div", { class: "card-bar" }, h("span", { class: "eyebrow" }, "Setup"), h("span", { class: "muted setup-count" }, "1 of 2 done")),
-      h(
-        "ol",
-        { class: "setup-rows" },
-        step(`Added to ${s.editor}`, "The extension is in", h("span", { class: "pill ok" }, h("span", { class: "dot ok" }), "Done")),
-        step(
-          "Install antitheft",
-          "The app that keeps your wallets and saved passwords yours, on this computer",
-          null,
-          h("div", { class: "setup-action" }, button("Get antitheft", () => send({ type: "getAntitheft" }), "primary", "external")),
-        ),
+      "ol",
+      { class: "steps" },
+      step("done", `Added to ${s.editor}`, "The extension is in and ready"),
+      step(
+        "now",
+        "Install antitheft",
+        "The app that keeps your wallets and saved passwords yours, on this computer",
+        h("div", { class: "step-actions" }, button("Get antitheft", () => send({ type: "getAntitheft" }), "primary", "external")),
       ),
+      step("next", "Protected", "This editor switches on by itself once antitheft runs"),
     ),
-    h("div", { class: "muted setup-after" },"Protection switches on by itself once antitheft runs"),
     h("div", { class: "setup-label muted" }, "What switches on"),
     point("Blocks extensions", "An extension's own code is refused when it reaches for a vault", "lock"),
     point("Stops what they start", "A program an extension downloads is stopped when it goes for your wallets", "stop"),
