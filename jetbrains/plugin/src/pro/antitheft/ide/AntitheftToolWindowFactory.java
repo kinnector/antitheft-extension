@@ -177,14 +177,14 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 : chip("Plugin working", OK, "A plugin's own reads of your vaults are refused."));
             chips.add(Box.createHorizontalStrut(JBUI.scale(16)));
             chips.add(switch (s.standing) {
-                case PROTECTED -> chip("antitheft installed", OK, s.systemLevel ? "Programs a plugin starts are stopped too." : "This computer can't block at the system level.");
+                case PROTECTED -> chip("Antitheft installed", OK, s.systemLevel ? "Programs a plugin starts are stopped too." : "This computer can't block at the system level.");
                 case PAUSED -> "license".equals(s.pausedBy)
                     ? chip("No licence, nothing blocked", WARN, "antitheft records every read of your vaults and blocks none until this computer has a licence.")
-                    : chip("antitheft paused", WARN, "Nothing is blocked until you resume.");
-                case NO_ACCESS -> chip("antitheft installed", UIUtil.getContextHelpForeground(), "Installed; continue in the antitheft app.");
-                case NOT_RUNNING -> chip("antitheft not running", WARN, "antitheft is installed, but its service is stopped.");
-                case CHECKING -> chip("antitheft starting", UIUtil.getContextHelpForeground(), "Looking for antitheft on this computer.");
-                case NOT_INSTALLED -> chip("antitheft not found", UIUtil.getContextHelpForeground(), "antitheft isn't installed on this computer.");
+                    : chip("Antitheft paused", WARN, "Nothing is blocked until you resume.");
+                case NO_ACCESS -> chip("Antitheft installed", UIUtil.getContextHelpForeground(), "Installed; continue in the antitheft app.");
+                case NOT_RUNNING -> chip("Antitheft not running", WARN, "antitheft is installed, but its service is stopped.");
+                case CHECKING -> chip("Antitheft starting", UIUtil.getContextHelpForeground(), "Looking for antitheft on this computer.");
+                case NOT_INSTALLED -> chip("Antitheft not found", UIUtil.getContextHelpForeground(), "antitheft isn't installed on this computer.");
             });
             // until antitheft answers, the setup steps say where things stand; the chips would only repeat it
             if (connected || s.standing == AntitheftService.Standing.CHECKING) {

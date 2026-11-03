@@ -54,7 +54,7 @@ Rules that matter:
   `/alerts/reviewed {ids}`; the app sees it); the editor's own refusals have no record there, so the extension
   remembers those (globalState / PropertiesComponent `antitheft.reviewed`). The status row and the status bar
   lead to the alerts; under the status: "Extension working" and "antitheft installed / paused / not running /
-  starting / not found". No progress bar on the vaults.
+  starting / not found" (chips start with a capital A: "Antitheft installed"). No progress bar on the vaults.
 - **No licence is never only in small print.** Paused by the licence: "Watching only / No licence on this computer",
   the chip "No licence, nothing blocked", one sentence of its own under the standing ("antitheft sees every read of
   your vaults but blocks none of them until this computer has a licence."), Get a licence as a PRIMARY button (the

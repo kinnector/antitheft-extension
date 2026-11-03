@@ -155,7 +155,7 @@ test("the sidebar when protected: one mark, the standing, the figures, the vault
   assert.equal(r.root.querySelectorAll(".hero-mark").length, 1);
   assert.equal(r.root.querySelectorAll(".hero-mark img.only-light, .hero-mark img.only-dark").length, 2, "the alert mark: a light and a dark one");
   assert.equal(r.root.querySelectorAll(".ring, .emblem").length, 0, "a status row: no disc, no looping ring");
-  assert.deepEqual(r.text(".cover"), ["Extension working", "antitheft installed"]);
+  assert.deepEqual(r.text(".cover"), ["Extension working", "Antitheft installed"]);
   assert.deepEqual(r.text(".stat-value"), ["2", "3", "2"], "vaults locked, extensions watched, denied reads this week");
   assert.deepEqual(r.text(".eyebrow"), ["Needs you", "Your vaults", "Extensions in this editor", "Recent in this editor"], "sentence case, no tracked capitals");
   assert.deepEqual(r.text(".panel-card .group-name"), ["Wallets", "Browsers & apps", "Keys & developer secrets", "3 extensions watched"]);
@@ -238,7 +238,7 @@ test("paused and not running", () => {
   const p = render("sidebar", state("sidebar", "paused"));
   assert.equal(p.text(".standing-title")[0], "Paused");
   assert.equal(p.text(".hero-sub")[0], "Nothing is blocked until you resume");
-  assert.deepEqual(p.text(".cover"), ["Extension working", "antitheft paused"]);
+  assert.deepEqual(p.text(".cover"), ["Extension working", "Antitheft paused"]);
   // paused is connected: the alerts and the controls are there
   assert.equal(p.root.querySelectorAll(".mini").length, 5);
   p.click("Resume in antitheft");

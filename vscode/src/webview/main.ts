@@ -292,16 +292,16 @@ function coverage(s: State): HTMLElement {
       : ["Extension working", "ok", "An extension's own reads of your vaults are refused."];
   const at: [string, string, string] =
     p === "protected"
-      ? ["antitheft installed", "ok", s.protection.systemLevel ? "Programs an extension starts are stopped too." : "This computer can't block at the system level."]
+      ? ["Antitheft installed", "ok", s.protection.systemLevel ? "Programs an extension starts are stopped too." : "This computer can't block at the system level."]
       : p === "paused"
         ? s.protection.pausedBy === "license"
           ? ["No licence, nothing blocked", "warn", "antitheft records every read of your vaults and blocks none until this computer has a licence."]
-          : ["antitheft paused", "warn", "Nothing is blocked until you resume."]
+          : ["Antitheft paused", "warn", "Nothing is blocked until you resume."]
         : p === "not-running"
-          ? ["antitheft not running", "warn", "antitheft is installed, but its service is stopped."]
+          ? ["Antitheft not running", "warn", "antitheft is installed, but its service is stopped."]
           : p === "checking"
-            ? ["antitheft starting", "muted", "Looking for antitheft on this computer."]
-            : ["antitheft not found", "muted", "antitheft isn't installed on this computer."];
+            ? ["Antitheft starting", "muted", "Looking for antitheft on this computer."]
+            : ["Antitheft not found", "muted", "antitheft isn't installed on this computer."];
   const chip = ([label, tone, tip]: [string, string, string]) => h("span", { class: `cover ${tone}`, title: tip }, h("span", { class: `dot ${tone}` }), label);
   return h("div", { class: "coverage" }, chip(ext), chip(at));
 }
