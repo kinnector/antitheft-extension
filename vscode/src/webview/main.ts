@@ -479,20 +479,21 @@ function whatIs(s: State): HTMLElement {
   const m = s.media;
   const arrive = !landed;
   landed = true;
-  const thing = (icon: string | undefined, title: string, line: string) =>
+  // each thing in the extension's own boxed glyph tile (TRIAL against the glass icons: media/glass is kept)
+  const thing = (glyphName: string, title: string, line: string) =>
     h(
       "div",
       { class: "thing" },
-      icon ? h("img", { class: "thing-icon", src: icon, alt: "" }) : null,
+      tile(null, glyphName),
       h("div", { class: "thing-text" }, h("div", { class: "thing-title" }, title), h("div", { class: "muted" }, line)),
     );
   return h(
     "section",
     { class: "what-is" },
     h("h2", { class: "what-is-title" }, "What is antitheft?"),
-    thing(m.glassKeys, "Locks your wallets and passwords", "Only their own apps can open them"),
-    thing(m.glassCube, "Stops extensions that go for them", "Packages, AI agents and what they run too"),
-    thing(m.glassAnchor, "Catches what tries to stay", "Startup entries, services and cron jobs"),
+    thing("lock", "Locks your wallets and passwords", "Only their own apps can open them"),
+    thing("puzzle", "Stops extensions that go for them", "Packages, AI agents and what they run too"),
+    thing("stop", "Catches what tries to stay", "Startup entries, services and cron jobs"),
     m.alertExample
       ? h("img", {
           class: arrive ? "alert-picture arrive" : "alert-picture",

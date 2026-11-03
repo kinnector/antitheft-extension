@@ -224,7 +224,7 @@ test("not installed: almost there, one step left, what switches on; nothing else
     // what antitheft is: three things with antitheft's own glass icons, then the real alert card landing
     assert.equal(r.text(".what-is-title")[0], "What is antitheft?");
     assert.deepEqual(r.text(".thing-title"), ["Locks your wallets and passwords", "Stops extensions that go for them", "Catches what tries to stay"]);
-    assert.deepEqual([...r.root.querySelectorAll(".thing-icon")].map((i) => i.getAttribute("src")), ["m/g/keys.webp", "m/g/npm-cube.webp", "m/g/anchor.webp"]);
+    assert.equal(r.root.querySelectorAll(".thing .glyph-tile").length, 3, "each thing in the boxed glyph tile");
     assert.equal(r.root.querySelector(".what-is .alert-picture")?.getAttribute("src"), "m/alert-example.webp");
     assert.doesNotMatch(r.root.textContent ?? "", /SSH|\.env/, "only what antitheft locks is named");
     assert.equal(r.root.querySelectorAll(".soon, .variant-switch").length, 0, "no coming soon, no experiment switch");

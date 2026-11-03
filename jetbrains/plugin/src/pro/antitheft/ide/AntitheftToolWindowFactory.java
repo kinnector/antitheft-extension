@@ -338,7 +338,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                         "The app that keeps your wallets and saved passwords yours, on this computer", true,
                         button("Get antitheft", () -> com.intellij.ide.BrowserUtil.browse(GET_ANTITHEFT)))));
                     p.add(left(step(muted, null, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
-                    // what antitheft is: three things with antitheft's own glass icons (the landing's, icons/glass),
+                    // what antitheft is: three things, each in a boxed IDE icon (TRIAL; the glass icons stay in icons/glass),
                     // then a real antitheft alert as a picture. Only what antitheft does: never SSH keys, .env or
                     // cloud CLI credentials, which are only watched.
                     p.add(Box.createVerticalStrut(JBUI.scale(16)));
@@ -346,9 +346,9 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                     what.setFont(JBFont.label().asBold().biggerOn(2));
                     p.add(left(what));
                     p.add(Box.createVerticalStrut(JBUI.scale(8)));
-                    p.add(left(thing("keys", "Locks your wallets and passwords", "Only their own apps can open them")));
-                    p.add(left(thing("npm-cube", "Stops plugins that go for them", "Packages, AI agents and what they run too")));
-                    p.add(left(thing("anchor", "Catches what tries to stay", "Startup entries, services and cron jobs")));
+                    p.add(left(thing(AllIcons.Ide.Readonly, "Locks your wallets and passwords", "Only their own apps can open them")));
+                    p.add(left(thing(AllIcons.Nodes.Plugin, "Stops plugins that go for them", "Packages, AI agents and what they run too")));
+                    p.add(left(thing(AllIcons.Actions.Suspend, "Catches what tries to stay", "Startup entries, services and cron jobs")));
                     p.add(Box.createVerticalStrut(JBUI.scale(8)));
                     p.add(left(sampleAlert()));
                 }
@@ -385,24 +385,30 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return p;
         }
 
-        /** One thing antitheft does: its glass icon (icons/glass/<name>.png, 44 px), a title and one line. */
-        private static JComponent thing(String icon, String title, String detail) {
+        /** One thing antitheft does: the IDE's own icon in a boxed tile (32 px, rounded, the hover tint), a title and
+         *  one line. TRIAL against the glass icons (icons/glass is kept). */
+        private static JComponent thing(Icon icon, String title, String detail) {
             JPanel row = new JPanel(new BorderLayout(JBUI.scale(12), 0));
             row.setOpaque(false);
             row.setBorder(JBUI.Borders.empty(4, 0));
-            java.net.URL url = AntitheftToolWindowFactory.class.getResource("/icons/glass/" + icon + ".png");
-            if (url != null) {
-                java.awt.Image img = new javax.swing.ImageIcon(url).getImage();
-                int w = img.getWidth(null), h = img.getHeight(null);
-                if (w > 0 && h > 0) {
-                    int box = JBUI.scale(44);
-                    float k = Math.min(box / (float) w, box / (float) h);
-                    JBLabel mark = new JBLabel(new javax.swing.ImageIcon(img.getScaledInstance(Math.round(w * k), Math.round(h * k), java.awt.Image.SCALE_SMOOTH)));
-                    mark.setPreferredSize(new Dimension(box, box));
-                    mark.setHorizontalAlignment(JBLabel.CENTER);
-                    row.add(mark, BorderLayout.WEST);
+            int box = JBUI.scale(32);
+            JComponent mark = new JComponent() {
+                @Override
+                protected void paintComponent(java.awt.Graphics g) {
+                    java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                    g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(JBColor.namedColor("ActionButton.hoverBackground", new JBColor(0xDFE1E5, 0x43454A)));
+                    int r = JBUI.scale(4);
+                    g2.fillRoundRect(0, 0, box, box, r * 2, r * 2);
+                    icon.paintIcon(this, g2, (box - icon.getIconWidth()) / 2, (box - icon.getIconHeight()) / 2);
+                    g2.dispose();
                 }
-            }
+            };
+            mark.setPreferredSize(new Dimension(box, box));
+            JPanel west = new JPanel(new java.awt.GridBagLayout());
+            west.setOpaque(false);
+            west.add(mark);
+            row.add(west, BorderLayout.WEST);
             JPanel t = column();
             t.add(left(new JBLabel(title)));
             t.add(left(new JBLabel(detail, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
