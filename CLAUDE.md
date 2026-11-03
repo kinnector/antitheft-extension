@@ -58,7 +58,7 @@ Rules that matter:
 - **Until antitheft answers, the same setup steps show, the step left marked** (`daemon/protection.ts` standings):
   not installed = Install antitheft; `no-access` (installed and running, but the socket, `root:kinnector 0660`,
   refuses this login: the installer's `usermod -a -G kinnector` only applies at the next login; told apart from
-  "not running" by `access(2)` on the socket, `socketRefused`) = Log out and back in; not running = Start antitheft
+  "not running" by `access(2)` on the socket, `socketRefused`) = Continue in antitheft, with Open antitheft (starts the app on "/"; the app carries the person on); not running = Start antitheft
   with Check again. "What is antitheft?" only while not installed; no coverage chips until connected.
 - **Not installed is a setup that is almost done, never a warning.** The standing reads "Almost there / One step
   left: install antitheft" (status bar "antitheft: one step left"), no coverage chips; below it three steps:

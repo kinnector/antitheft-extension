@@ -143,7 +143,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return switch (s.standing) {
                 case CHECKING -> new Look(OFFLINE, "Checking", "Looking for antitheft on this computer", muted, null);
                 case NOT_INSTALLED -> new Look(OFFLINE, "Almost there", "One step left: install antitheft", muted, null);
-                case NO_ACCESS -> new Look(OFFLINE, "Almost there", "One step left: log out and back in", muted, null);
+                case NO_ACCESS -> new Look(OFFLINE, "Almost there", "One step left: continue in antitheft", muted, null);
                 case NOT_RUNNING -> new Look(OFFLINE, "Not running", "One step left: start antitheft", WARN, null);
                 case PAUSED -> "license".equals(s.pausedBy)
                     ? new Look(PAUSED, "Watching only", "Nothing is blocked without a licence", WARN, "Get a licence")
@@ -179,7 +179,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             chips.add(switch (s.standing) {
                 case PROTECTED -> chip("antitheft installed", OK, s.systemLevel ? "Programs a plugin starts are stopped too." : "This computer can't block at the system level.");
                 case PAUSED -> chip("antitheft paused", WARN, "license".equals(s.pausedBy) ? "Watching only: no licence on this computer." : "Nothing is blocked until you resume.");
-                case NO_ACCESS -> chip("antitheft installed", UIUtil.getContextHelpForeground(), "Running; this login may not reach it until you log out and back in.");
+                case NO_ACCESS -> chip("antitheft installed", UIUtil.getContextHelpForeground(), "Installed; continue in the antitheft app.");
                 case NOT_RUNNING -> chip("antitheft not running", WARN, "antitheft is installed, but its service is stopped.");
                 case CHECKING -> chip("antitheft starting", UIUtil.getContextHelpForeground(), "Looking for antitheft on this computer.");
                 case NOT_INSTALLED -> chip("antitheft not found", UIUtil.getContextHelpForeground(), "antitheft isn't installed on this computer.");
@@ -343,8 +343,8 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                         p.add(left(step(OK, OK, "Install antitheft", st == AntitheftService.Standing.NO_ACCESS ? "Installed and running" : "Installed", false, null)));
                     }
                     if (st == AntitheftService.Standing.NO_ACCESS) {
-                        p.add(left(step(now, JBColor.border(), "Log out and back in",
-                            "Installing gave your account access to antitheft. It takes effect at your next login, or after a restart", true, null)));
+                        p.add(left(step(now, JBColor.border(), "Continue in antitheft", "Finish setting it up in the antitheft app", true,
+                            button("Open antitheft", () -> s.openApp("/")))));
                     }
                     if (st == AntitheftService.Standing.NOT_RUNNING) {
                         p.add(left(step(now, JBColor.border(), "Start antitheft", "Its service is stopped. It starts again with your computer", true,

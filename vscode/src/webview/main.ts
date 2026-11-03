@@ -243,7 +243,7 @@ function look(s: State): Look {
   const m = s.media;
   if (p.standing === "checking") return { icon: m.offline, title: "Checking", sub: "Looking for antitheft on this computer", tone: "muted" };
   if (p.standing === "not-installed") return { icon: m.offline, title: "Almost there", sub: "One step left: install antitheft", tone: "muted" };
-  if (p.standing === "no-access") return { icon: m.offline, title: "Almost there", sub: "One step left: log out and back in", tone: "muted" };
+  if (p.standing === "no-access") return { icon: m.offline, title: "Almost there", sub: "One step left: continue in antitheft", tone: "muted" };
   if (p.standing === "not-running") return { icon: m.offline, title: "Not running", sub: "One step left: start antitheft", tone: "warn" };
   if (p.standing === "paused") {
     return p.pausedBy === "license"
@@ -439,7 +439,7 @@ function notProtected(s: State, compact: boolean): HTMLElement {
   const p = s.protection.standing;
   if (p === "checking") return h("div");
   // Until antitheft answers: a setup that is mostly done, the one step left marked. Not installed: install it.
-  // Installed but this login may not reach it yet (no-access): log out and back in. Installed, service stopped:
+  // Installed but this login may not reach it yet (no-access): continue in the antitheft app. Installed, service stopped:
   // start it. The editor switches on by itself after (the socket watcher and the retry notice it).
   const step = (state: "done" | "now" | "next", t: string, d: string, ...extra: (HTMLElement | null)[]) =>
     h(
@@ -464,7 +464,12 @@ function notProtected(s: State, compact: boolean): HTMLElement {
           )
         : step("done", "Install antitheft", p === "no-access" ? "Installed and running" : "Installed"),
       p === "no-access"
-        ? step("now", "Log out and back in", "Installing gave your account access to antitheft. It takes effect at your next login, or after a restart")
+        ? step(
+            "now",
+            "Continue in antitheft",
+            "Finish setting it up in the antitheft app",
+            h("div", { class: "step-actions" }, button("Open antitheft", () => openApp("/"), "primary", "external")),
+          )
         : null,
       p === "not-running"
         ? step(
