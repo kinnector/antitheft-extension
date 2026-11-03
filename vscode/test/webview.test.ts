@@ -61,7 +61,7 @@ function state(surface: "sidebar" | "panel", standing: string, overrides: Record
     extensions: { attention: rows.attention.map(icon), quiet: rows.quiet.map(icon) },
     vaults,
     editor: "Visual Studio Code",
-    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png" },
+    media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", brand_metamask: "m/b/metamask.svg", brand_chrome: "m/b/chrome.svg", brand_npm: "m/b/npm.svg" },
     now: 1200,
     ...overrides,
   };
@@ -221,7 +221,14 @@ test("not installed: almost there, one step left, what switches on; nothing else
     assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, "Install antitheft");
     r.click("Get antitheft");
     assert.deepEqual(r.posted.at(-1), { type: "getAntitheft" });
-    assert.deepEqual(r.text(".point-title"), ["Blocks extensions", "Stops what they start", "Names the culprit"]);
+    assert.deepEqual(r.text(".point-title"), ["Crypto wallets", "Browser logins", "Password managers", "Chats and cloud logins", "Extensions", "AI agents and installs"]);
+    // each point shows the real apps it covers, never a glyph tile
+    const icons = [...r.root.querySelectorAll(".point")].map((p) => [...p.querySelectorAll(".point-icons img")].map((i) => i.getAttribute("src")));
+    assert.deepEqual(icons[0], ["m/b/metamask.svg"]);
+    assert.deepEqual(icons[1], ["m/b/chrome.svg"]);
+    assert.deepEqual(icons[4], ["m/vscode.png"]);
+    assert.deepEqual(icons[5], ["m/c.png", "m/x.png", "m/b/npm.svg"]);
+    assert.equal(r.root.querySelectorAll(".point .glyph-tile").length, 0);
     assert.equal(r.root.querySelectorAll("h2, .soon").length, 0, "no warning headline, no coming soon");
     assert.equal(r.root.querySelectorAll(".tab, .card").length, 0, "no alerts or tabs before antitheft protects");
   }

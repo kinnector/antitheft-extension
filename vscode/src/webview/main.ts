@@ -447,7 +447,11 @@ function notProtected(s: State, compact: boolean): HTMLElement {
       h("span", { class: "step-mark" }, h("span", { class: `dot ${state === "done" ? "ok" : state === "now" ? "now" : "muted"}` })),
       h("div", { class: "step-text" }, h("div", { class: "step-title" }, t), h("div", { class: "muted" }, d), ...extra),
     );
-  const point = (t: string, d: string, g: string) => h("div", { class: "point" }, tile(null, g), h("div", {}, h("div", { class: "point-title" }, t), h("div", { class: "muted" }, d)));
+  // what antitheft locks, each with the real apps it covers (official colour marks, media/brands). Only what is
+  // LOCKED goes here (the README's "What it protects"): SSH keys, .env and cloud CLI credentials are only watched.
+  const m = s.media;
+  const point = (t: string, d: string, icons: (string | undefined)[]) =>
+    h("div", { class: "point" }, h("span", { class: "point-icons" }, stack(icons)), h("div", {}, h("div", { class: "point-title" }, t), h("div", { class: "muted" }, d)));
   return h(
     "div",
     { class: compact ? "explain setup" : "explain setup wide" },
@@ -464,9 +468,12 @@ function notProtected(s: State, compact: boolean): HTMLElement {
       step("next", "Protected", "This editor switches on by itself once antitheft runs"),
     ),
     h("div", { class: "setup-label muted" }, "What switches on"),
-    point("Blocks extensions", "An extension's own code is refused when it reaches for a vault", "lock"),
-    point("Stops what they start", "A program an extension downloads is stopped when it goes for your wallets", "stop"),
-    point("Names the culprit", "Alerts say which extension, so you can disable or remove it here", "puzzle"),
+    point("Crypto wallets", "Wallet apps and wallet extensions open only in their own app", [m.brand_metamask, m.brand_rabby, m.brand_exodus, m.brand_electrum]),
+    point("Browser logins", "Saved passwords, cookies and cards stay with your browser", [m.brand_chrome, m.brand_firefox, m.brand_brave]),
+    point("Password managers", "Your passwords and 2FA codes open only in their own app", [m.brand_bitwarden, m.brand_1password, m.brand_proton_pass]),
+    point("Chats and cloud logins", "Your signed-in sessions stay with their app", [m.brand_discord, m.brand_signal, m.brand_slack, m.brand_dropbox]),
+    point("Extensions", "An extension, or a program it downloads, is refused your vaults, and the alert names it", [m.ide]),
+    point("AI agents and installs", "Coding agents, the terminal, tasks and package install scripts are held to the same rule", [m.claude, m.codex, m.brand_npm]),
   );
 }
 

@@ -151,6 +151,11 @@ button.stat:hover { background: var(--tint); }
 .explain.wide h2 { font-size: 24px; font-weight: 500; }
 .explain p { margin: 0; color: var(--vscode-foreground); }
 .point { display: flex; gap: 12px; align-items: flex-start; }
+/* the apps each point covers, as the vaults card stacks them; a fixed column so the titles line up */
+.point-icons { width: 72px; flex: none; display: inline-flex; padding-top: 2px; }
+/* here the stack sits on the bare view, not on a card: the ring between icons takes the view's own colour */
+.point-icons .stack-item { box-shadow: 0 0 0 2px var(--vscode-sideBar-background); }
+body[data-surface="panel"] .point-icons .stack-item { box-shadow: 0 0 0 2px var(--vscode-editor-background); }
 .point-title { font-weight: 500; }
 
 /* not installed: a setup that is mostly done. Each step's mark is the extension's own status dot (the one in

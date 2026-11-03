@@ -341,9 +341,14 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                     p.add(Box.createVerticalStrut(JBUI.scale(12)));
                     p.add(left(new JBLabel("What switches on", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
                     p.add(Box.createVerticalStrut(JBUI.scale(4)));
-                    p.add(left(point(AllIcons.Ide.Readonly, "Blocks plugins", "A plugin's own code is refused when it reaches for a vault")));
-                    p.add(left(point(AllIcons.Actions.Suspend, "Stops what they start", "A program a plugin downloads is stopped when it goes for your wallets")));
-                    p.add(left(point(AllIcons.Nodes.Plugin, "Names the culprit", "Alerts say which plugin, so you can disable it here")));
+                    // what antitheft locks, each with the real apps it covers (official colour marks, icons/brands);
+                    // only what is LOCKED: SSH keys, .env and cloud CLI credentials are only watched
+                    p.add(left(point(brands("metamask.svg", "rabby.png", "exodus.svg", "electrum.svg"), "Crypto wallets", "Wallet apps and wallet extensions open only in their own app")));
+                    p.add(left(point(brands("chrome.svg", "firefox.svg", "brave.svg"), "Browser logins", "Saved passwords, cookies and cards stay with your browser")));
+                    p.add(left(point(brands("bitwarden.svg", "1password.svg", "proton_pass.svg"), "Password managers", "Your passwords and 2FA codes open only in their own app")));
+                    p.add(left(point(brands("discord.svg", "signal.svg", "slack.svg", "dropbox.svg"), "Chats and cloud logins", "Your signed-in sessions stay with their app")));
+                    p.add(left(point(stacked(List.of(AllIcons.Nodes.Plugin)), "Plugins", "A plugin, or a program it downloads, is refused your vaults, and the alert names it")));
+                    p.add(left(point(brands("claude.png", "codex.png", "npm.svg"), "AI agents and installs", "Coding agents, the terminal, run configurations and package install scripts are held to the same rule")));
                 }
                 default -> { }
             }
@@ -360,11 +365,58 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         }
 
+        /** Bundled brand marks (icons/brands) at 16 px, overlapping as the VS Code side's stack. A mark that fails to
+         *  load is left out. */
+        private static Icon brands(String... files) {
+            List<Icon> out = new ArrayList<>();
+            int size = JBUI.scale(16);
+            for (String f : files) {
+                try {
+                    String path = "/icons/brands/" + f;
+                    if (f.endsWith(".svg")) {
+                        Icon svg = IconLoader.getIcon(path, AntitheftToolWindowFactory.class);
+                        if (svg.getIconWidth() > 0) out.add(com.intellij.util.IconUtil.scale(svg, null, size / (float) svg.getIconWidth()));
+                    } else {
+                        java.net.URL url = AntitheftToolWindowFactory.class.getResource(path);
+                        if (url == null) continue;
+                        java.awt.Image img = new javax.swing.ImageIcon(url).getImage();
+                        if (img.getWidth(null) > 0) out.add(new javax.swing.ImageIcon(img.getScaledInstance(size, size, java.awt.Image.SCALE_SMOOTH)));
+                    }
+                } catch (RuntimeException e) {
+                    // a missing mark costs only its icon
+                }
+            }
+            return stacked(out);
+        }
+
+        /** Icons drawn left to right, each over the last by a third, in a fixed 72 px column so titles line up. */
+        private static Icon stacked(List<Icon> icons) {
+            return new Icon() {
+                @Override
+                public void paintIcon(Component c, java.awt.Graphics g, int x, int y) {
+                    int step = JBUI.scale(11);
+                    for (int i = 0; i < icons.size(); i++) icons.get(i).paintIcon(c, g, x + i * step, y + (getIconHeight() - icons.get(i).getIconHeight()) / 2);
+                }
+
+                @Override
+                public int getIconWidth() {
+                    return JBUI.scale(72);
+                }
+
+                @Override
+                public int getIconHeight() {
+                    return JBUI.scale(16);
+                }
+            };
+        }
+
         private static JComponent point(Icon icon, String title, String detail) {
             JPanel row = new JPanel(new BorderLayout(JBUI.scale(8), 0));
             row.setOpaque(false);
             row.setBorder(JBUI.Borders.empty(3, 0));
-            row.add(new JBLabel(icon), BorderLayout.WEST);
+            JBLabel iconLabel = new JBLabel(icon);
+            iconLabel.setVerticalAlignment(JBLabel.TOP);
+            row.add(iconLabel, BorderLayout.WEST);
             JPanel t = column();
             JBLabel h = new JBLabel(title);
             h.setFont(JBFont.label().asBold());
