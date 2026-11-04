@@ -251,6 +251,8 @@ function look(s: State): Look {
   if (p.standing === "not-installed") return { icon: m.offline, title: "Almost there", sub: "One step left: install antitheft", tone: "muted" };
   if (p.standing === "no-access") return { icon: m.offline, title: "Almost there", sub: "One step left: continue in antitheft", tone: "muted" };
   if (p.standing === "not-running") return { icon: m.offline, title: "Not running", sub: "One step left: start antitheft", tone: "warn" };
+  if (p.standing === "update-antitheft") return { icon: m.offline, title: "Almost there", sub: "One step left: update antitheft", tone: "muted" };
+  if (p.standing === "update-extension") return { icon: m.offline, title: "Almost there", sub: "One step left: update this extension", tone: "muted" };
   if (p.standing === "paused") {
     // no licence is the state people miss: said in the title, the line, a sentence of its own and a real button
     return p.pausedBy === "license"
@@ -362,7 +364,8 @@ function stats(s: State): HTMLElement | null {
     v ? tile(String(v.locked), paused ? (v.locked === 1 ? "vault watched" : "vaults watched") : v.locked === 1 ? "vault locked" : "vaults locked", "", () => send({ type: "screen", screen: "vaults" })) : null,
     tile(String(exts.length), exts.length === 1 ? "extension watched" : "extensions watched", "", () => send({ type: "screen", screen: "extensions" })),
     v
-      ? tile(compact(v.refused), paused ? "would be denied, 7d" : "denied, 7 days", v.refused ? "bad" : "", () => openApp("/activity"))
+      ? // the whole computer's (every program's refused opens of the vaults), not this editor's: the label says so
+        tile(compact(v.refused), paused ? "would be denied on this computer, 7d" : "denied on this computer, 7d", v.refused ? "bad" : "", () => openApp("/activity"))
       : tile(String(blockedHere), "blocked here", blockedHere ? "bad" : "", () => send({ type: "screen", screen: "alerts" })),
   );
 }
@@ -439,7 +442,8 @@ function sidebar(s: State): HTMLElement {
     h(
       "button",
       { class: "mini", onclick: () => send({ type: "screen", screen: i.needsYou ? "alerts" : "activity" }) },
-      actorIcon(i.programIcon ?? i.extIcon, i.program?.name ?? i.extensionName ?? i.title),
+      // who did it: the extension's own icon when an extension did, else the program's (never the vault's)
+      actorIcon(i.extIcon ?? i.programIcon, i.extensionName ?? i.program?.name ?? i.title),
       h("span", { class: "mini-text" }, h("span", { class: "mini-title" }, i.title), h("span", { class: "mini-meta" }, severityLabel(i), h("span", { class: "muted when" }, when(i.at, s.now)))),
     );
   return h(
@@ -502,6 +506,24 @@ function notProtected(s: State, compact: boolean): HTMLElement {
             "Start antitheft",
             "Its service is stopped. It starts again with your computer",
             h("div", { class: "step-actions" }, button("Check again", () => send({ type: "recheck" }), "secondary")),
+          )
+        : null,
+      // antitheft older than this extension (it predates the editor API), or newer than this extension speaks: the
+      // antitheft app updates itself, and it installs its own copy of the extension (Settings > Editors)
+      p === "update-antitheft"
+        ? step(
+            "now",
+            "Update antitheft",
+            "This extension needs a newer antitheft",
+            h("div", { class: "step-actions" }, button("Open antitheft", () => openApp("/"), "primary", "external")),
+          )
+        : null,
+      p === "update-extension"
+        ? step(
+            "now",
+            "Update the extension",
+            "antitheft has a newer version of it for this editor",
+            h("div", { class: "step-actions" }, button("Open antitheft", () => openApp("/"), "primary", "external")),
           )
         : null,
       step("next", "Protected", "This editor switches on by itself once antitheft runs"),
@@ -690,7 +712,7 @@ function alertRow(i: Item, s: State, withActions: boolean): HTMLElement {
           ? h("div", { class: "mono alert-target" }, i.detail)
           : null,
     ),
-    who ? h("div", { class: "alert-actor" }, actorIcon(i.programIcon ?? i.extIcon, who.split(" › ").pop() ?? who), h("span", { class: "alert-actor-name" }, who)) : h("div"),
+    who ? h("div", { class: "alert-actor" }, actorIcon(i.extIcon ?? i.programIcon, i.extensionName ?? who.split(" › ").pop() ?? who), h("span", { class: "alert-actor-name" }, who)) : h("div"),
     h("div", { class: "mono alert-when" }, when(i.at, s.now)),
     own || (withActions && i.needsYou)
       ? h(

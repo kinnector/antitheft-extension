@@ -62,6 +62,32 @@ Rules that matter:
   anything but protected, nothing says "locked": the figure reads "vaults watched", the Vaults tab "N found,
   watched only: nothing is blocked". The paused mark is the "a." with a SOLID amber dot (light and dark files, like
   the alert's red one), never a hollow ring.
+- **Two copies, one id: the store's and antitheft's own.** The marketplace listings (VS Code Marketplace, Open VSX,
+  JetBrains Marketplace) are how people find the extension; antitheft installs ITS copy, built with the daemon it
+  talks to (`antitheft-cli editors --install`: the VSIX through the editor's `--install-extension --force`, the
+  JetBrains folder copied into `plugins/antitheft`), over a store copy if there is one. Same id everywhere
+  (`kinnector.antitheft`, `pro.antitheft`), never a second entry. VS Code, Cursor, VSCodium and Antigravity IDE
+  record a VSIX install as `pinned: true, source: "vsix"` and never auto-update a pinned extension (turning
+  auto-update on or clicking Update unpins it). JetBrains has no pin: "Update plugins automatically" replaces any
+  installed `pro.antitheft` from the Marketplace at the next restart. So the version can drift, and the hello
+  carries an API number both ways: `api` in the request (`IDE_API`), `api` in the answer (absent = 1). 404 on hello
+  with no antitheft error code (no such route: an antitheft from before the editor API) or an answer below
+  `MIN_DAEMON_API` = standing `update-antitheft`; 426 `extension_outdated` (antitheft's `MIN_EXTENSION_API`) =
+  `update-extension` (JetBrains `UPDATE_ANTITHEFT` / `UPDATE_PLUGIN`). Both are a step left ("Almost there / One
+  step left: update ..."), never "not running", and the guard stays off. Raise `IDE_API` (here and in antitheft's
+  `agent/src/ide/routes.rs`) only for a change an older counterpart would misread. The JetBrains zip carries its
+  version in `antitheft/.antitheft-version` (`build.sh`), so a Marketplace copy reports its version too; the
+  Marketplace unpacks the zip under its root folder name, so the zip's root must stay `antitheft`.
+- **The JetBrains store build has no internal IDE API** (Marketplace approval refuses it; Plugin Verifier reports
+  it). `./build.sh --store` writes `build-store/antitheft.zip`: `plugin/store/` replaces the matching files of
+  `plugin/src/` and the build fails if `com.intellij.ide.plugins.PluginEnabler`/`PluginManagerCore` is still named.
+  The only difference is `DirectDisable`: antitheft's own copy disables a plugin from an alert at once
+  (`PluginEnabler`), the store copy sends the person to Settings > Plugins, as Uninstall always does. Everything else
+  is one code path: installed plugins are read from `PathManager.getPluginsDir()` by `Plugins` (each one's
+  `META-INF/plugin.xml` and `pluginIcon.svg`), because every IDE call that returns a descriptor by id or lists
+  them is internal in 2026.2 (`PluginManagerCore.getPlugin`/`getPlugins`, `PluginManager.getLoadedPlugins`,
+  `PluginUtils`). Never route around it with reflection: a reviewer reads that as evasion. Check with the verifier
+  before a submission (`check-plugin build-store/antitheft.zip <IDE>`): store build = "Compatible" and nothing else.
 - **Until antitheft answers, the same setup steps show, the step left marked** (`daemon/protection.ts` standings):
   not installed = Install antitheft; `no-access` (installed and running, but the socket, `root:kinnector 0660`,
   refuses this login: the installer's `usermod -a -G kinnector` only applies at the next login; told apart from
@@ -85,6 +111,27 @@ Rules that matter:
   beats, a typed code comment, a notification header, a question). No fear headline, no "coming soon".
 - **Activity can be cleared** (Activity tab, the sidebar's Recent): a time (`antitheft.activityClearedAt`), not a
   deletion; what still needs you stays on Alerts until it is reviewed.
+- **Who did it leads every alert row**: the extension's (plugin's) own icon first, else the program's (its launcher's
+  when it has none, `iconSubject`), never the vault's; the vault's icon sits small beside the vault's name under the
+  title (JetBrains `iconFor` / `vaultIconFor`, VS Code `extIcon ?? programIcon`).
+- **Reports go out as they happen, every one** (no polling, no once-a-minute): VS Code flushes the queue at once; the
+  JetBrains guard calls the plugin the moment it records an event (`Guard.onEvent`, set on connect, cleared on
+  disconnect; the 30 s sweep is only a backstop). A repeated launch is sent as `quiet: true` (it names that process's
+  alerts in antitheft, never listed again). Each item carries `extension_name` and, once per connection, the
+  extension's icon (`extension_icon`, VS Code: the manifest's `icon` file; JetBrains: `META-INF/pluginIcon.svg`, ONLY
+  from inside the plugin's own folder, compared as filesystem paths). antitheft writes the extension onto its alerts
+  and the app shows it (antitheft CLAUDE.md "Which extension did it").
+- **ACP agents run behind the bridge, transparently (JetBrains)**: when the IDE's agent code (`.acp.` packages,
+  `com.agentclientprotocol.`, `Acp*` classes) starts an ACP agent (claude-agent-acp, codex-acp, agy acp, `gemini
+  --acp`, any `*-acp`), `Guard.bridgeAcpAgent` puts `antitheft-cli acp --agent <id> --` in front of the same command,
+  while connected (`setBridge`, `AntitheftService.bridgeProgram`). Never add entries of our own to an IDE's agent list
+  (`~/.jetbrains/acp.json` entries were tried and REJECTED). The guard's refusal text tells an agent what happened and
+  what to do (no access can be granted to a read the IDE makes).
+- **The tool window (JetBrains)**: content in a width-tracking `Page` (no sideways scrolling), scroll positions kept
+  across a rebuild, one rebuild per burst (`requestRender`); text that wraps uses `Para` (measures its height at its
+  width; a JBLabel asked for one long line); pictures `FitImage`; empty tabs are the head plus one grey line. The plugin
+  reconnects by itself after a daemon restart (`scheduleRetry` clears its own future before rechecking, every few
+  seconds while installed).
 
 README screenshots: `vscode/test/shots/run.mjs` (a demo daemon with made-up data, a lookalike "Claude Code
 Assistant" as the thief, real extensions as manifest-only stubs, Dark Modern at 2x on Xvfb, cropped to the window)

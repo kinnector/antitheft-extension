@@ -288,6 +288,24 @@ test("installed and running, but this login may not reach it yet: one step left,
   }
 });
 
+test("antitheft of another version: one step left, update the side that is behind", () => {
+  for (const [standing, sub, now] of [
+    ["update-antitheft", "One step left: update antitheft", "Update antitheft"],
+    ["update-extension", "One step left: update this extension", "Update the extension"],
+  ] as const) {
+    for (const surface of ["sidebar", "panel"] as const) {
+      const r = render(surface, state(surface, standing));
+      assert.equal(r.text(".standing-title")[0], "Almost there");
+      assert.equal(r.text(".hero-sub")[0], sub);
+      assert.deepEqual(r.text(".step-title"), ["Added to Visual Studio Code", "Install antitheft", now, "Protected"]);
+      assert.equal(r.root.querySelector(".step--now .step-title")?.textContent, now);
+      r.click("Open antitheft");
+      assert.deepEqual(r.posted.at(-1), { type: "openApp", route: "/" });
+      assert.equal(r.root.querySelectorAll(".cover, .tab, .what-is").length, 0);
+    }
+  }
+});
+
 test("a broken hook shows on the standing", () => {
   const r = render("sidebar", state("sidebar", "protected", { hooks: { fs_binding: "ok", rpc: "missing" } }));
   assert.equal(r.text(".cover")[0], "Extension partly working");

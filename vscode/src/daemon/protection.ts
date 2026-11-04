@@ -4,6 +4,9 @@
 //   no-access       installed and running, but this login session may not use its socket yet: the installer
 //                   added the person to the socket's group, which only takes effect at their next login
 //   not-running     installed, but its service does not answer
+//   update-antitheft  running, but older than this extension: it has no editor API (404 on hello) or an older one
+//   update-extension  running, and newer than this extension can speak (426 on hello): antitheft installs its
+//                   own copy (the store copy and antitheft's own may differ in version)
 //   paused          the owner (or the licence) paused protection: nothing is enforced, the guard stays off
 //   protected       everything on
 //
@@ -15,7 +18,24 @@ import * as cp from "child_process";
 import { request, socketPath } from "./client";
 import { dev } from "../dev";
 
-export type Standing = "checking" | "not-installed" | "no-access" | "not-running" | "paused" | "protected";
+export type Standing = "checking" | "not-installed" | "no-access" | "not-running" | "update-antitheft" | "update-extension" | "paused" | "protected";
+
+/** The editor API this extension speaks, sent on hello. antitheft answers 426 when it no longer serves it. */
+export const IDE_API = 1;
+/** The oldest antitheft editor API this extension can use. An answer with no `api` is 1. */
+export const MIN_DAEMON_API = 1;
+
+/** Pure: what a hello's answer means. `null` = connected; otherwise the standing to show (the guard stays off).
+ *  A 404 with none of antitheft's own error codes is a route that does not exist: an antitheft from before the
+ *  editor API. Anything else that fails reads as not running, as before. */
+export function helloStanding(status: number | null, body: { api?: unknown; code?: unknown } | null): Standing | null {
+  if (status === null) return "not-running";
+  if (status === 426 || body?.code === "extension_outdated") return "update-extension";
+  if (status === 404 && typeof body?.code !== "string") return "update-antitheft";
+  if (status < 200 || status >= 300) return "not-running";
+  const api = typeof body?.api === "number" ? body.api : 1;
+  return api < MIN_DAEMON_API ? "update-antitheft" : null;
+}
 
 export interface Protection {
   standing: Standing;

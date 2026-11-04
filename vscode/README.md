@@ -30,22 +30,52 @@ computer itself, and this extension brings that protection inside the editor.
 
 ![Every wallet, password manager and browser on the computer, and which ones only their own app can open](https://raw.githubusercontent.com/kinnector/antitheft-extension/main/docs/screenshots/vaults.png)
 
-## What it protects
+## Supported vaults
 
-Antitheft locks a vault to its own app: only that app can open it, and anything else is refused. That
-covers:
+Antitheft locks each of these to its own app: only that app can open it. An extension, an AI agent or a
+program either of them starts is refused. Names without a note are supported on Linux, macOS and Windows.
 
-- crypto wallets, desktop apps and browser extension wallets alike
-- the passwords, cookies and cards your browsers saved
-- password managers and authenticator (2FA) apps
-- your desktop keyring
-- messaging and cloud sync logins
+| Vault | Apps |
+| --- | --- |
+| Browsers: saved passwords, cookies (your signed-in sessions), cards | Google Chrome (also Beta and Dev), Chromium, Brave, Microsoft Edge, Opera, Vivaldi, Yandex Browser, Firefox, LibreWolf, Waterfox, Arc (macOS, Windows), ungoogled-chromium (Linux) |
+| Wallet browser extensions | MetaMask, Phantom, Rabby, Trust Wallet, Coinbase Wallet, OKX Wallet, Binance Wallet, Bitget Wallet, Keplr, Backpack, Ronin, SubWallet, Talisman, Core, Enkrypt, Magic Eden and 20 more, plus any other extension that describes itself as a crypto wallet, in every browser above |
+| Desktop wallets | Exodus, Atomic Wallet, Ledger Live, Electrum, Electrum-LTC, Electron Cash, Dash Electrum, Sparrow, Wasabi, Bisq, Feather, Guarda, Monero GUI and Monero wallet files, Coinomi (macOS, Windows), BlueWallet (macOS) |
+| Password managers | 1Password, Bitwarden (app and CLI), Keeper, NordPass, Proton Pass, Enpass, Dashlane (Linux), LastPass, RoboForm and Sticky Password (macOS, Windows), KeePassXC and KeePass (their settings and browser connection) |
+| 2FA apps and extensions | Authy, Ente Auth, 2fa, Proton Authenticator, GNOME Authenticator and Keysmith (Linux), Yubico Authenticator (macOS, Windows), WinAuth (Windows), and authenticator extensions such as 2FAS and Authenticator |
+| System keychains | macOS Keychain, GNOME Keyring and KDE Wallet (Linux) |
+| Messaging | Discord, Slack, Signal, Element, Telegram (macOS, Windows) |
+| Cloud sync | Dropbox, MEGA, Nextcloud, pCloud, rclone, Syncthing |
+| Email logins | Thunderbird (Linux, macOS), Canary Mail (macOS, Windows) |
+| Notes apps | Joplin, Standard Notes, Obsidian and Logseq (app settings and plugins) |
+| Remote connections | Termius, Remmina (Linux), mRemoteNG and Xshell (Windows) |
+| Game launchers | Steam (macOS, Windows), Battle.net, EA app, GOG Galaxy, Riot Client, Rockstar Games Launcher, Ubisoft Connect (Windows) |
 
-Developer files such as `.env`, cloud CLI credentials and SSH keys are watched by the Antitheft app, which
-records every program that opens them.
+### Developer secrets
 
-What Antitheft finds and locks depends on the apps installed on your computer and on your system. The
-Vaults tab shows exactly what it is protecting on yours.
+Your build tools, deploy scripts, agents and CLIs read these all day, so Antitheft does not lock them: it
+records every program that opens one, and you see who it was. The Vaults tab marks each one Observed,
+with its reads this week, and the Antitheft app shows which program read it.
+
+| Secret | Tools |
+| --- | --- |
+| Project secrets | `.env` files in your projects |
+| SSH | Private keys, `~/.ssh/config`, `known_hosts`, `authorized_keys`, ssh-agent, PuTTY, sshPilot, saved sites in FileZilla, WinSCP, MobaXterm, Cyberduck. Turn on **SSH key hardening** in the Antitheft app's settings and only SSH tools can read your keys |
+| Cloud | AWS CLI, Google Cloud CLI, Azure CLI, DigitalOcean, Cloudflare Wrangler, Vercel, Netlify, Fly.io, Heroku, Railway, Render, Firebase, Supabase |
+| Infrastructure | kubectl, Helm, Terraform, Pulumi, Vagrant, Ansible Vault, Docker and Podman registry logins |
+| Secret managers | HashiCorp Vault, Doppler, Infisical, 1Password CLI (the Bitwarden CLI is locked, see above) |
+| Code hosting and CI | GitHub CLI, GitLab CLI, Git credential stores and Git Credential Manager, `.netrc`, GitLab Runner, Buildkite, CircleCI, TeamCity |
+| Package registry tokens | npm, PyPI, Cargo, RubyGems, NuGet, Maven, Gradle, Composer |
+| Databases | `.pgpass`, `.my.cnf`, pgAdmin, DBeaver, MongoDB Shell and Compass, redis-cli |
+| Signing keys | GnuPG, `pass`, Android and Java keystores |
+| Command-line wallets | Bitcoin Core, geth, Foundry, Hardhat, Truffle, Solana CLI, Anchor, Sui, NEAR, Aptos, TRON wallet-cli, Monero CLI |
+
+Also recorded: other email apps, backup tools (Borg, Kopia, Vorta) and game launchers on Linux.
+
+KeePass and KeePassXC databases (`.kdbx`) are not covered, because they live wherever you choose to save
+them.
+
+What Antitheft finds and locks on your computer depends on the apps you have installed. The Vaults tab
+shows exactly what it is protecting on yours.
 
 ## In the editor
 

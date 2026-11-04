@@ -8,8 +8,8 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { BroadcastChannel } from "worker_threads";
-import { call, request, stream, socketPath, type StreamHandle } from "./daemon/client";
-import { readProtection, type Protection } from "./daemon/protection";
+import { request, stream, socketPath, type StreamHandle } from "./daemon/client";
+import { helloStanding, IDE_API, readProtection, type Protection } from "./daemon/protection";
 import { Matcher, NO_PREFIXES, type Prefixes } from "./guard/matcher";
 import { CulpritFinder, type ExtensionRoot } from "./guard/culprit";
 import { installGuard, type GuardEvent, type Installed } from "./guard/core";
@@ -56,8 +56,10 @@ export class Session implements vscode.Disposable {
 
   private matcher = new Matcher(NO_PREFIXES, WINDOWS);
   private finder: CulpritFinder;
-  private queue: GuardEvent[] = [];
+  private queue: (GuardEvent & { quiet?: boolean })[] = [];
   private readonly lastLaunch = new Map<string, number>();
+  /** Extensions whose icon this connection has sent (cleared on every hello: a restarted daemon has none). */
+  private readonly iconSent = new Set<string>();
   private flushTimer: NodeJS.Timeout | null = null;
   private heartbeat: NodeJS.Timeout | null = null;
   private retry: NodeJS.Timeout | null = null;
@@ -131,19 +133,22 @@ export class Session implements vscode.Disposable {
   }
 
   private async connect(): Promise<void> {
-    let hello: Hello;
-    try {
-      hello = await call<Hello>("POST", "/api/v1/ide/hello", {
-        app: vscode.env.appName,
-        app_version: vscode.version,
-        extension_version: String(this.context.extension.packageJSON?.version ?? ""),
-      });
-    } catch {
-      this.protection = { ...this.protection, standing: "not-running" };
+    const a = await request<Hello & { api?: number; code?: string }>("POST", "/api/v1/ide/hello", {
+      app: vscode.env.appName,
+      app_version: vscode.version,
+      extension_version: String(this.context.extension.packageJSON?.version ?? ""),
+      api: IDE_API,
+    });
+    // an antitheft older or newer than this extension can speak is a step left, never "not running"
+    const left = helloStanding(a?.status ?? null, a?.body && typeof a.body === "object" ? a.body : null);
+    if (left || !a) {
+      this.protection = { ...this.protection, standing: left ?? "not-running" };
       this.scheduleRetry();
       return;
     }
+    const hello = a.body;
     this.ideId = hello.ide_id;
+    this.iconSent.clear();
     this.retryDelay = 2000;
     this.vaults = hello.prefixes;
     this.applyStanding();
@@ -208,27 +213,39 @@ export class Session implements vscode.Disposable {
 
   private onGuardEvent(e: GuardEvent): void {
     if (e.decoy) return;
-    // the same program launched again and again by the same extension (GitLens runs git all day):
-    // the first launch a minute is reported, the rest would only bury what matters
+    // Every launch is reported, so antitheft names each process's alerts. The same program launched again by the same
+    // extension within a minute (GitLens runs git all day) goes as a quiet repeat: named, never listed again.
+    let quiet = false;
     if (e.kind === "spawn") {
       const program = programOf(e.command);
       const key = `${e.extensionId}\u0000${program}`;
       const now = Date.now();
-      if (now - (this.lastLaunch.get(key) ?? 0) < 60_000) return;
-      if (this.lastLaunch.size > 2000) this.lastLaunch.clear();
-      this.lastLaunch.set(key, now);
+      quiet = now - (this.lastLaunch.get(key) ?? 0) < 60_000;
+      if (!quiet) {
+        if (this.lastLaunch.size > 2000) this.lastLaunch.clear();
+        this.lastLaunch.set(key, now);
+      }
     }
-    if (this.queue.length < MAX_QUEUE) this.queue.push(e);
+    if (this.queue.length < MAX_QUEUE) this.queue.push({ ...e, quiet });
     if (e.kind === "blocked") this.blockedEmitter.fire(e);
-    if (!this.flushTimer) this.flushTimer = setTimeout(() => void this.flush(), 1000);
+    // at once, not on a timer: the program it started is caught while it runs (`cat` lives a millisecond), and its
+    // alert should name the extension the moment it pops up
+    if (!this.flushTimer) this.flushTimer = setTimeout(() => void this.flush(), 0);
   }
 
   private async flush(): Promise<void> {
     this.flushTimer = null;
     if (!this.ideId || !this.queue.length) return;
-    const items = this.queue.splice(0, 64).map((e) => ({ kind: e.kind, extension_id: e.extensionId, op: e.op, path: e.path, pid: e.pid, command: e.command }));
+    // each item names the extension as its manifest does and, once per connection, carries its icon: antitheft's
+    // alerts (the app's popup and Alerts page) name the extension with them
+    const items = this.queue.splice(0, 64).map((e) => {
+      const own = extensionCard(e.extensionId, !this.iconSent.has(e.extensionId));
+      if (own.icon) this.iconSent.add(e.extensionId);
+      return { kind: e.kind, extension_id: e.extensionId, op: e.op, path: e.path, pid: e.pid, command: e.command, extension_name: own.name, extension_icon: own.icon, quiet: e.quiet || undefined };
+    });
     await request("POST", "/api/v1/ide/report", { ide_id: this.ideId, items });
-    if (this.queue.length) this.flushTimer = setTimeout(() => void this.flush(), 1000);
+    // more than one report's worth came at once: the rest right after
+    if (this.queue.length) this.flushTimer = setTimeout(() => void this.flush(), 0);
     else this.scheduleRefresh();
   }
 
@@ -368,4 +385,23 @@ function isUnder(file: string, dir: string): boolean {
   const f = path.resolve(file);
   const d = path.resolve(dir) + path.sep;
   return win ? f.toLowerCase().startsWith(d.toLowerCase()) : f.startsWith(d);
+}
+
+/** An extension as antitheft's alerts name it: its manifest's display name and, when asked, its icon (the file its
+ *  manifest names, PNG/SVG/JPEG, at most 96 KB) as `{content_type, data_base64}`. */
+function extensionCard(id: string, withIcon: boolean): { name?: string; icon?: { content_type: string; data_base64: string } } {
+  const ext = vscode.extensions.getExtension(id);
+  const pj = (ext?.packageJSON ?? {}) as { displayName?: unknown; name?: unknown; icon?: unknown };
+  const raw = typeof pj.displayName === "string" && !pj.displayName.startsWith("%") ? pj.displayName : typeof pj.name === "string" ? pj.name : undefined;
+  if (!withIcon || !ext || typeof pj.icon !== "string") return { name: raw };
+  const file = path.join(ext.extensionPath, pj.icon);
+  const type = /\.png$/i.test(file) ? "image/png" : /\.svg$/i.test(file) ? "image/svg+xml" : /\.jpe?g$/i.test(file) ? "image/jpeg" : null;
+  try {
+    if (!type || !isUnder(file, ext.extensionPath)) return { name: raw };
+    const bytes = fs.readFileSync(file);
+    if (bytes.length > 96 * 1024) return { name: raw };
+    return { name: raw, icon: { content_type: type, data_base64: bytes.toString("base64") } };
+  } catch {
+    return { name: raw };
+  }
 }

@@ -145,13 +145,28 @@ const PASSTHROUGH = new Set(["sudo", "doas", "timeout", "env", "nohup", "setsid"
 /** The app's actor line (`ui/src/lib/alertTitles.ts` `originLine`): the first launcher above the actor that is not a
  *  shell, init or a pass-through (sudo, timeout), then the actor. "Claude Code › rm", or just "rm". */
 export function actorLine(chain: ProcessSnapshot[] | undefined, actor: string): string {
+  const p = launcherOf(chain, actor);
+  return p ? `${p.role === "terminal" ? "Terminal" : programName(p)} › ${actor}` : actor;
+}
+
+/** The launcher `actorLine` names: the first process above the actor that is not a shell, init or a pass-through. */
+function launcherOf(chain: ProcessSnapshot[] | undefined, actor: string): ProcessSnapshot | null {
   for (const p of chain ?? []) {
     const name = programName(p);
     if (p.role === "shell" || p.role === "init" || name === actor || PASSTHROUGH.has(name.toLowerCase())) continue;
     if (/^(ba|da|z|fi|k|tc|c)?sh$/i.test(name)) continue;
-    return `${p.role === "terminal" ? "Terminal" : name} › ${actor}`;
+    return p;
   }
-  return actor;
+  return null;
+}
+
+/** Which program an alert's icon is asked for (the app's `toAlertRow`): the actor's own when the corpus knows it (or a
+ *  Windows program, which always has an icon), else its launcher's. `rm` has no icon; the person knows it by "Claude Code". */
+export function iconSubject(actor: ProcessSnapshot | null, image: string | undefined, chain: ProcessSnapshot[] | undefined, name: string): { image?: string; titleId?: string | null } {
+  const own = { image, titleId: actor?.title_id };
+  if (own.titleId || /^[a-z]:[\\/]/i.test(image ?? "")) return own;
+  const launcher = launcherOf(chain, name);
+  return launcher?.image_path ? { image: launcher.image_path, titleId: launcher.title_id } : own;
 }
 
 const SIGNAL_VERBS: Record<number, string> = { 2: "interrupt", 9: "kill", 15: "terminate", 18: "resume", 19: "pause" };
@@ -247,7 +262,8 @@ export function alertItem(a: AlertEntry, exts: Map<string, ExtInfo>, editor: str
     at: a.last_seen_unix,
     extensionId: a.extension_id,
     extensionName: ext ?? undefined,
-    program: { name: program, image: actorImage, titleId: actor?.title_id },
+    // name: the actor; image/titleId: what its icon is asked for (its launcher's when it has none, `iconSubject`)
+    program: { name: program, ...(ext ? { image: actorImage, titleId: actor?.title_id } : iconSubject(actor, actorImage, d.actor_chain, program)) },
     chain,
     alertId: a.id,
     count: a.count,
@@ -491,14 +507,17 @@ export function vaultSummary(vaults: Vault[]): VaultSummary {
     mine.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
     groups.push({ kind, label: KIND_LABEL[kind], vaults: mine, locked: mine.filter(isLocked).length, observed: mine.filter((v) => !isLocked(v)).length });
   }
+  // a browser's week already counts its extensions' opens (antitheft's `opens_of`), so a row inside another listed
+  // row is not added again: MetaMask's refusals would count once for MetaMask and once for its browser
+  const counted = vaults.filter((v) => !(v.parent && names.has(v.parent)));
   return {
     groups,
     total: vaults.length,
     locked: vaults.filter(isLocked).length,
     observed: vaults.filter((v) => !isLocked(v)).length,
     pending: vaults.filter((v) => v.status === "pending").length,
-    allowed: vaults.reduce((n, v) => n + (v.week?.allowed ?? 0), 0),
-    refused: vaults.reduce((n, v) => n + (v.week?.refused ?? 0), 0),
+    allowed: counted.reduce((n, v) => n + (v.week?.allowed ?? 0), 0),
+    refused: counted.reduce((n, v) => n + (v.week?.refused ?? 0), 0),
   };
 }
 

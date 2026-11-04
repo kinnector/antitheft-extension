@@ -15,6 +15,9 @@ your computer itself:
 
 It needs antitheft installed and running: until then it does nothing but say so.
 
+The wallets, browsers, password managers and other apps it protects, and the developer secrets it
+records, are listed in [Supported vaults](vscode/README.md#supported-vaults).
+
 ![Alerts, with the Antitheft app's alert over the editor](docs/screenshots/overview.png)
 ![Vaults](docs/screenshots/vaults.png)
 ![Extensions](docs/screenshots/extensions.png)

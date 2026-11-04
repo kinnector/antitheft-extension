@@ -4,7 +4,7 @@ import { alertItem, eventItem, extensionRows, feed, vaultPhrase, when, type Aler
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { socketRefused, standingOf } from "../src/daemon/protection";
+import { helloStanding, socketRefused, standingOf } from "../src/daemon/protection";
 import { writesRunnable } from "../src/guard/core";
 
 const exts = new Map<string, ExtInfo>([
@@ -113,6 +113,17 @@ test("the standing from the socket's answer and the service registration", () =>
   assert.equal(standingOf(null, true, false, true).standing, "no-access", "running, but this login may not use the socket yet");
 });
 
+test("a hello answer from an antitheft of another version is a step left, never not running", () => {
+  assert.equal(helloStanding(200, { api: 1 }), null);
+  assert.equal(helloStanding(200, {}), null, "an antitheft that sends no api speaks 1");
+  assert.equal(helloStanding(200, { api: 0 }), "update-antitheft", "older than this extension can use");
+  assert.equal(helloStanding(404, null), "update-antitheft", "no such route: antitheft from before the editor API");
+  assert.equal(helloStanding(404, { code: "something" }), "not-running", "antitheft's own 404 is not a missing route");
+  assert.equal(helloStanding(426, { code: "extension_outdated", api: 2 }), "update-extension");
+  assert.equal(helloStanding(403, { code: "no_ide" }), "not-running");
+  assert.equal(helloStanding(null, null), "not-running");
+});
+
 test("a socket this process may not use reads as refused; a missing one does not", () => {
   if (process.platform === "win32") return;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "at-sock-"));
@@ -149,7 +160,8 @@ test("vaults group by kind, wallets first, locked before observed, a browser's e
   assert.deepEqual(s.groups.map((g) => g.kind), ["wallets", "vaults", "secrets"]);
   assert.deepEqual(s.groups[0].vaults.map((x) => x.name), ["MetaMask", "Electrum", "Wasabi Wallet"]);
   assert.equal(s.groups[0].vaults[0].where, "Google Chrome");
-  assert.deepEqual([s.total, s.locked, s.observed, s.allowed, s.refused], [5, 3, 2, 970, 3]);
+  // Chrome's 900 already holds MetaMask's 30 (antitheft counts a browser with its extensions): not added twice
+  assert.deepEqual([s.total, s.locked, s.observed, s.allowed, s.refused], [5, 3, 2, 940, 3]);
   assert.deepEqual([compact(999), compact(1234), compact(12_400), compact(2_500_000)], ["999", "1.2k", "12k", "2.5M"]);
 });
 
@@ -169,8 +181,11 @@ test("a reviewed alert no longer needs you; other kinds read as the app's senten
   const { alertItem, actorLine } = await import("../src/model");
   const base = { category: "alert", first_seen_unix: 1, last_seen_unix: 2, paused: true, count: 9 };
   const rm = { ...base, id: 3848, kind: "persistence_location_changed", data: { path: "/etc/systemd/system/antitheftd.service.prev", change: "disappeared", writer: { pid: 1, image_path: "/usr/bin/rm" },
-    actor_chain: [{ pid: 9, app: "dash", role: "shell" }, { pid: 8, app: "timeout" }, { pid: 7, app: "sudo" }, { pid: 6, app: "bash", role: "shell" }, { pid: 5, app: "Claude Code", role: "agent" }, { pid: 4, app: "VSCodium" }] } };
+    actor_chain: [{ pid: 9, app: "dash", role: "shell" }, { pid: 8, app: "timeout" }, { pid: 7, app: "sudo" }, { pid: 6, app: "bash", role: "shell" },
+      { pid: 5, app: "Claude Code", role: "agent", image_path: "/home/u/.local/share/claude/versions/2.1.317", title_id: "claude_code" }, { pid: 4, app: "VSCodium" }] } };
   const i = alertItem(rm as never, exts, "VSCodium")!;
+  // rm has no icon of its own: the row shows the launcher's, Claude Code's, as the app does (never a dashed "R")
+  assert.deepEqual([i.program?.name, i.program?.image, i.program?.titleId], ["rm", "/home/u/.local/share/claude/versions/2.1.317", "claude_code"]);
   assert.equal(i.title, "rm removed auto-start entry antitheftd.service.prev");
   assert.equal(i.target, "antitheftd.service.prev");
   assert.equal(i.actorLine, "Claude Code › rm", "shells, sudo and timeout left out, as the app's origin line");
