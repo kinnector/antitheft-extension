@@ -9,6 +9,7 @@
 // hooks ok, the reports name the stealer, and the tool window, its tabs and the status bar show the alerts.
 
 import { spawn, execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -52,9 +53,6 @@ const opts = fs.readFileSync(path.join(bin, vmo), "utf8") + [
   "-Didea.initially.ask.config=never",
   "-Didea.trust.all.projects=true",
   "-Dide.show.tips.on.startup.default.value=false",
-  // Android Studio: no Setup Wizard (it opens, modal, wherever no Android SDK is set up, and the project waits
-  // behind it); the other IDEs ignore the property
-  "-Ddisable.android.first.run=true",
   "",
 ].join("\n");
 fs.writeFileSync(path.join(P, "vmoptions"), opts);
@@ -67,7 +65,24 @@ const launcher = mac
   : win
     ? path.join(bin, `${name}64.exe`)
     : fs.existsSync(path.join(bin, name)) ? path.join(bin, name) : path.join(bin, `${name}.sh`);
-const env = { ...process.env, ANTITHEFT_SOCKET: socket, ANTITHEFT_DEV_ASSUME_SERVICE: "1", [`${product}_VM_OPTIONS`]: path.join(P, "vmoptions"), [`${product}_PROPERTIES`]: path.join(P, "idea.properties") };
+// Android Studio keeps its analytics consent in ~/.android (outside the IDE profile): on a machine where it has never
+// asked, a modal "Help improve Android Studio" dialog comes first and the project waits behind it (reproduced on a
+// fresh Windows install: the stealer never ran, 249 s). Its own home for the run, with the question already answered
+// (opted out), keeps the test off the person's real ~/.android too. The other IDEs ignore ANDROID_USER_HOME.
+const androidHome = path.join(P, "android-user-home");
+fs.mkdirSync(androidHome, { recursive: true });
+fs.writeFileSync(
+  path.join(androidHome, "analytics.settings"),
+  JSON.stringify({ userId: randomUUID(), hasOptedIn: false, debugDisablePublishing: true, saltValue: 1, saltSkew: 0, lastOptinPromptVersion: "9999.9" }),
+);
+const env = {
+  ...process.env,
+  ANTITHEFT_SOCKET: socket,
+  ANTITHEFT_DEV_ASSUME_SERVICE: "1",
+  ANDROID_USER_HOME: androidHome,
+  [`${product}_VM_OPTIONS`]: path.join(P, "vmoptions"),
+  [`${product}_PROPERTIES`]: path.join(P, "idea.properties"),
+};
 const args = [path.join(P, "project")];
 const ide = xvfb ? spawn("xvfb-run", ["-a", "-s", "-screen 0 1600x1000x24", launcher, ...args], { env, detached: true, stdio: "ignore" }) : spawn(launcher, args, { env, detached: !win, stdio: "ignore" });
 
