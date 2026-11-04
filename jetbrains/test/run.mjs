@@ -52,6 +52,9 @@ const opts = fs.readFileSync(path.join(bin, vmo), "utf8") + [
   "-Didea.initially.ask.config=never",
   "-Didea.trust.all.projects=true",
   "-Dide.show.tips.on.startup.default.value=false",
+  // Android Studio: no Setup Wizard (it opens, modal, wherever no Android SDK is set up, and the project waits
+  // behind it); the other IDEs ignore the property
+  "-Ddisable.android.first.run=true",
   "",
 ].join("\n");
 fs.writeFileSync(path.join(P, "vmoptions"), opts);
