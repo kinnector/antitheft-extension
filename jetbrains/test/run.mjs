@@ -129,8 +129,11 @@ if (wallet.length !== 1 || !/×\d+/.test(wallet[0] ?? "")) failures.push(`repeat
 if (!has(/^tab "Alerts · \d+"/) || !has(/^tab "Vaults"/) || !has(/^tab "Activity"/) || !has(/^tab "Plugins"/)) failures.push("the tabs are missing");
 if (!has(/test stealer|poc\.stealer|POC Stealer/i)) failures.push("the stealer plugin is not named in the tool window");
 if (!has(/^button "Disable plugin"/) || !has(/^button "Open in antitheft"/)) failures.push("the alert actions are missing");
-// a shell running a script is named by the program it runs
-if (!has(/^label "POC Stealer started cat"/)) failures.push("the shell launch is not named by the program it runs (expected \"started cat\")");
+// a shell running a script is named by the program it runs: `sh -c 'cat ...'` reads as cat. On Windows the stealer's
+// shell launch is `powershell.exe -EncodedCommand`, which hides its command: there is no program inside to name, so
+// it reads as powershell.exe
+const shellRuns = win ? "powershell.exe" : "cat";
+if (!has(new RegExp(`^label "POC Stealer started ${shellRuns.replace(".", "\\.")}"`))) failures.push(`the shell launch is not named by the program it runs (expected "started ${shellRuns}")`);
 console.log(failures.length ? `FAILED:\n  ${failures.join("\n  ")}` : "PASSED");
 if (process.argv.includes("--keep")) console.log(`kept: ${P}`);
 else {
