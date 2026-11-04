@@ -8,6 +8,7 @@ dist/
 out-test/
 *.vsix
 jetbrains/build/
+jetbrains/build-store/
 jetbrains/out/
 .vscode-test/
 /out/

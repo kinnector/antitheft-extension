@@ -65,7 +65,7 @@ public final class AntitheftStatusBarWidgetFactory implements StatusBarWidgetFac
             return switch (s.standing) {
                 case CHECKING -> "antitheft…";
                 case NOT_INSTALLED -> "antitheft: one step left";
-                case NO_ACCESS -> "antitheft: one step left";
+                case NO_ACCESS, UPDATE_ANTITHEFT, UPDATE_PLUGIN -> "antitheft: one step left";
                 case NOT_RUNNING -> "antitheft: not running";
                 case PAUSED -> {
                     // no licence reads as what it means, never as a pause someone chose

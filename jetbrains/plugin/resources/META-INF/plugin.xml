@@ -22,7 +22,9 @@
       found, and which ones only their own app can open.</li>
     </ul>
     <p>Antitheft locks crypto wallets, browser passwords and cookies, password managers, authenticator apps, your
-    desktop keyring and messaging and cloud sync logins. What it finds depends on the apps on your computer.</p>
+    desktop keyring and messaging and cloud sync logins. What it finds depends on the apps on your computer.
+    <a href="https://github.com/kinnector/antitheft-extension/blob/main/vscode/README.md#supported-vaults">Every
+    supported app</a>.</p>
     <p>Needs the Antitheft app installed and running on the same computer. The plugin talks only to it and sends
     nothing anywhere else.</p>
     <p>Source and issues: <a href="https://github.com/kinnector/antitheft-extension">github.com/kinnector/antitheft-extension</a>.</p>

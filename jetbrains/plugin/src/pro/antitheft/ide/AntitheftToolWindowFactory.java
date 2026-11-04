@@ -1,8 +1,6 @@
 package pro.antitheft.ide;
 
 import com.intellij.icons.AllIcons;
-import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.IconLoader;
@@ -68,8 +66,12 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
 
     static final class Panel extends JPanel {
         private final AntitheftService s = AntitheftService.get();
-        private final Runnable listener = this::render;
+        private final Runnable listener = this::requestRender;
         private final JBTabbedPane tabs = new JBTabbedPane();
+        /** Each tab's scroll position, kept across a rebuild (and the not-connected page's, under -1). */
+        private final Map<Integer, Integer> scrolled = new java.util.HashMap<>();
+        private JBScrollPane single;
+        private boolean renderQueued;
 
         Panel() {
             super(new BorderLayout());
@@ -81,12 +83,28 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             s.removeListener(listener);
         }
 
+        /** One rebuild for a burst of changes: every vault's icon arriving used to rebuild the window once each. */
+        private void requestRender() {
+            if (renderQueued) return;
+            renderQueued = true;
+            com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater(() -> {
+                renderQueued = false;
+                render();
+            });
+        }
+
         private void render() {
             int tab = tabs.getTabCount() > 0 ? tabs.getSelectedIndex() : 0;
             if (s.alertsNext) {
                 s.alertsNext = false;
                 tab = 0;
             }
+            // the rebuild replaces every scroll pane: remember where each one was, or the list jumps to the top
+            for (int i = 0; i < tabs.getTabCount(); i++) {
+                if (tabs.getComponentAt(i) instanceof JBScrollPane sp) scrolled.put(i, sp.getVerticalScrollBar().getValue());
+            }
+            if (single != null) scrolled.put(-1, single.getVerticalScrollBar().getValue());
+            single = null;
             removeAll();
             JPanel top = column();
             top.setBorder(JBUI.Borders.empty(10, 12, 6, 12));
@@ -107,10 +125,20 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 tabs.setSelectedIndex(Math.min(tab, tabs.getTabCount() - 1));
                 add(tabs, BorderLayout.CENTER);
             } else {
-                add(scroll(notProtected()), BorderLayout.CENTER);
+                single = scroll(notProtected());
+                add(single, BorderLayout.CENTER);
             }
             revalidate();
             repaint();
+            // after the new panes are laid out (revalidate's own pass runs first)
+            com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater(() -> {
+                for (int i = 0; i < tabs.getTabCount(); i++) {
+                    Integer y = scrolled.get(i);
+                    if (y != null && tabs.getComponentAt(i) instanceof JBScrollPane sp) sp.getVerticalScrollBar().setValue(y);
+                }
+                Integer y = scrolled.get(-1);
+                if (y != null && single != null) single.getVerticalScrollBar().setValue(y);
+            });
         }
 
         private static JPanel column() {
@@ -125,12 +153,101 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return c;
         }
 
+        /** A scrolling page: as wide as the window (text wraps, the right-hand status words stay in view, no sideways
+         *  scrolling), content at its own height from the top, a wheel step of a line. */
         private static JBScrollPane scroll(JComponent c) {
-            JPanel wrap = new JPanel(new BorderLayout());
-            wrap.add(c, BorderLayout.NORTH);
-            JBScrollPane sp = new JBScrollPane(wrap);
+            Page page = new Page();
+            page.add(c, BorderLayout.NORTH);
+            JBScrollPane sp = new JBScrollPane(page, JBScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JBScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
             sp.setBorder(JBUI.Borders.empty());
+            sp.getVerticalScrollBar().setUnitIncrement(JBUI.scale(16));
             return sp;
+        }
+
+        private static final class Page extends JPanel implements javax.swing.Scrollable {
+            Page() {
+                super(new BorderLayout());
+                setOpaque(false);
+            }
+
+            @Override
+            public Dimension getPreferredScrollableViewportSize() {
+                return getPreferredSize();
+            }
+
+            @Override
+            public int getScrollableUnitIncrement(java.awt.Rectangle r, int orientation, int direction) {
+                return JBUI.scale(16);
+            }
+
+            @Override
+            public int getScrollableBlockIncrement(java.awt.Rectangle r, int orientation, int direction) {
+                return Math.max(JBUI.scale(16), r.height - JBUI.scale(32));
+            }
+
+            @Override
+            public boolean getScrollableTracksViewportWidth() {
+                return true;
+            }
+
+            @Override
+            public boolean getScrollableTracksViewportHeight() {
+                return getParent() instanceof javax.swing.JViewport v && v.getHeight() > getPreferredSize().height;
+            }
+        }
+
+        /** A tab's head, as the VS Code panel's: its title, one line under it, and the tab's one action on the right. */
+        private static JComponent head(String title, String sub, JComponent action) {
+            JPanel p = new JPanel(new BorderLayout(JBUI.scale(8), 0));
+            p.setOpaque(false);
+            p.setBorder(JBUI.Borders.emptyBottom(8));
+            JPanel text = column();
+            JBLabel t = new JBLabel(title);
+            t.setFont(JBFont.label().asBold().biggerOn(2));
+            text.add(left(t));
+            if (sub != null && !sub.isEmpty()) text.add(left(muted(sub)));
+            p.add(text, BorderLayout.CENTER);
+            if (action != null) {
+                JPanel a = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+                a.setOpaque(false);
+                a.add(action);
+                p.add(a, BorderLayout.EAST);
+            }
+            return left(p);
+        }
+
+        /** A section's eyebrow: small, muted, sentence case. */
+        private static JComponent eyebrow(String text) {
+            JBLabel l = new JBLabel(text, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER);
+            l.setBorder(JBUI.Borders.empty(12, 0, 4, 0));
+            return left(l);
+        }
+
+        /** A small muted line, wrapping to the window's width. */
+        private static JBLabel muted(String text) {
+            JBLabel l = new JBLabel("<html>" + escape(text) + "</html>", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER);
+            l.setAllowAutoWrapping(true);
+            return l;
+        }
+
+        /** A quiet action, the IDE's own link style: never a row of big buttons under every alert. */
+        private static JComponent link(String label, Runnable r) {
+            java.awt.event.ActionListener click = e -> r.run();
+            com.intellij.ui.components.ActionLink l = new com.intellij.ui.components.ActionLink(label, click);
+            l.setFont(JBFont.small());
+            return l;
+        }
+
+        /** A row that leads somewhere: the hand cursor, a tooltip, the click. */
+        private static void clickable(JComponent c, String tip, Runnable r) {
+            c.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+            c.setToolTipText(tip);
+            c.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    r.run();
+                }
+            });
         }
 
         private record Look(Icon icon, String title, String sub, Color tone, String action) {}
@@ -145,6 +262,8 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 case NOT_INSTALLED -> new Look(OFFLINE, "Almost there", "One step left: install antitheft", muted, null);
                 case NO_ACCESS -> new Look(OFFLINE, "Almost there", "One step left: continue in antitheft", muted, null);
                 case NOT_RUNNING -> new Look(OFFLINE, "Not running", "One step left: start antitheft", WARN, null);
+                case UPDATE_ANTITHEFT -> new Look(OFFLINE, "Almost there", "One step left: update antitheft", muted, null);
+                case UPDATE_PLUGIN -> new Look(OFFLINE, "Almost there", "One step left: update this plugin", muted, null);
                 case PAUSED -> "license".equals(s.pausedBy)
                     ? new Look(PAUSED, "Watching only", "No licence on this computer", WARN, "Get a licence")
                     : new Look(PAUSED, "Paused", "Nothing is blocked until you resume", WARN, "Resume in antitheft");
@@ -183,6 +302,8 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                     : chip("Antitheft paused", WARN, "Nothing is blocked until you resume.");
                 case NO_ACCESS -> chip("Antitheft installed", UIUtil.getContextHelpForeground(), "Installed; continue in the antitheft app.");
                 case NOT_RUNNING -> chip("Antitheft not running", WARN, "antitheft is installed, but its service is stopped.");
+                case UPDATE_ANTITHEFT -> chip("Antitheft out of date", UIUtil.getContextHelpForeground(), "This plugin needs a newer antitheft.");
+                case UPDATE_PLUGIN -> chip("Antitheft installed", UIUtil.getContextHelpForeground(), "antitheft has a newer version of this plugin.");
                 case CHECKING -> chip("Antitheft starting", UIUtil.getContextHelpForeground(), "Looking for antitheft on this computer.");
                 case NOT_INSTALLED -> chip("Antitheft not found", UIUtil.getContextHelpForeground(), "antitheft isn't installed on this computer.");
             });
@@ -215,7 +336,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                     }
                 });
             }
-            p.setMaximumSize(new Dimension(Integer.MAX_VALUE, p.getPreferredSize().height));
+            // no fixed height: the wrapped sentence and the button under it decide it at the window's width
             return left(p);
         }
 
@@ -229,10 +350,10 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return String.format("#%02x%02x%02x", c.getRed(), c.getGreen(), c.getBlue());
         }
 
-        private List<IdeaPluginDescriptor> userPlugins() {
-            List<IdeaPluginDescriptor> out = new ArrayList<>();
-            for (IdeaPluginDescriptor d : PluginManagerCore.getPlugins()) {
-                if (!d.isBundled() && !d.getPluginId().getIdString().equals(AntitheftService.OWN_ID)) out.add(d);
+        private List<Plugins.Info> userPlugins() {
+            List<Plugins.Info> out = new ArrayList<>();
+            for (Plugins.Info d : Plugins.installed()) {
+                if (!d.id().equals(AntitheftService.OWN_ID)) out.add(d);
             }
             return out;
         }
@@ -247,7 +368,8 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             row.setOpaque(false);
             if (v != null) row.add(stat(String.valueOf(v.locked()), paused ? (v.locked() == 1 ? "vault watched" : "vaults watched") : v.locked() == 1 ? "vault locked" : "vaults locked", v.locked() > 0 && !paused ? OK : null, 1));
             row.add(stat(String.valueOf(plugins), plugins == 1 ? "plugin watched" : "plugins watched", null, 3));
-            if (v != null) row.add(stat(Model.compact(v.refused()), paused ? "would be denied, 7d" : "denied reads, 7d", v.refused() > 0 ? BAD : null, -1));
+            // the whole computer's, not this IDE's (every program's refused opens of the vaults): said so in the label
+            if (v != null) row.add(stat(Model.compact(v.refused()), paused ? "would be denied on this computer, 7d" : "denied on this computer, 7d", v.refused() > 0 ? BAD : null, -1));
             else row.add(stat(String.valueOf(blockedHere), "blocked here", blockedHere > 0 ? BAD : null, 0));
             row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
             return left(row);
@@ -261,73 +383,79 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             v.setFont(JBFont.label().biggerOn(5));
             if (tone != null) v.setForeground(tone);
             p.add(left(v));
-            p.add(left(new JBLabel(label, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
-            p.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
-            p.addMouseListener(new MouseAdapter() {
+            // a label may wrap in a narrow tool window ("denied on this computer, 7d"): Para measures it at its width
+            Para l = new Para(label, JBFont.small(), UIUtil.getContextHelpForeground());
+            p.add(left(l));
+            MouseAdapter open = new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     if (tab < 0) s.openApp("/activity");
                     else if (tab < tabs.getTabCount()) tabs.setSelectedIndex(tab);
                 }
-            });
+            };
+            for (JComponent c : new JComponent[] {p, l}) {
+                c.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+                c.addMouseListener(open);
+            }
             return p;
         }
 
         private JComponent vaultsTab() {
             Model.Vaults v = s.vaults;
             JPanel p = column();
-            p.setBorder(JBUI.Borders.empty(8, 12));
+            p.setBorder(JBUI.Borders.empty(10, 12));
             if (v == null || v.total() == 0) {
-                JBLabel t = new JBLabel(v == null ? "Vaults are loading" : "No vaults found yet", PROTECTED, JBLabel.LEFT);
-                t.setFont(JBFont.label().asBold());
-                p.add(left(t));
-                p.add(left(new JBLabel(v == null ? "antitheft is listing the vaults on this computer." : "When a wallet, password manager or key appears, antitheft locks it to its own app.", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
+                p.add(head("Vaults", v == null ? "Reading the vaults on this computer" : "No vaults found yet", null));
+                if (v != null) p.add(left(muted("When a wallet, password manager or key appears, antitheft locks it to its own app")));
                 return p;
             }
             boolean paused = s.standing != AntitheftService.Standing.PROTECTED;
             // while nothing is blocked a vault is watched, never "locked"
-            JBLabel head = new JBLabel(paused ? v.total() + " vaults found, watched only: nothing is blocked" : v.locked() + " of " + v.total() + " vaults are locked to their own app");
-            head.setFont(JBFont.label().asBold().biggerOn(2));
-            p.add(left(head));
-            p.add(left(wrap("No other program can open them, plugins included." + (v.observed() == 1
+            p.add(head("Vaults", paused ? v.total() + " found, watched only: nothing is blocked" : v.locked() + " of " + v.total() + " locked to their own app",
+                link("Open in antitheft", () -> s.openApp("/vaults"))));
+            String what = paused ? "" : "No other program can open them, plugins included." + (v.observed() == 1
                 ? " The other one is observed: antitheft records every program that opens it."
-                : v.observed() > 1 ? " The other " + v.observed() + " are observed: antitheft records every program that opens them." : ""))));
-            String figures = Model.compact(v.allowed()) + (v.allowed() == 1 ? " allowed read" : " allowed reads") + "  ·  " + Model.compact(v.refused())
-                + (paused ? " would be denied" : v.refused() == 1 ? " denied read" : " denied reads") + "  ·  last 7 days"
-                + (v.pending() > 0 ? "  ·  " + v.pending() + " need your approval" : "");
-            p.add(left(new JBLabel(figures, UIUtil.ComponentStyle.SMALL)));
-            p.add(Box.createVerticalStrut(JBUI.scale(4)));
-            p.add(left(button("Open in antitheft", () -> s.openApp("/vaults"))));
+                : v.observed() > 1 ? " The other " + v.observed() + " are observed: antitheft records every program that opens them." : "");
+            if (!what.isEmpty()) p.add(left(muted(what)));
+            // the week in figures, the value first as the app's figures read
+            String deniedTone = v.refused() > 0 ? hex(BAD) : null;
+            String figures = "<b>" + Model.compact(v.allowed()) + "</b> allowed reads&nbsp;&nbsp;·&nbsp;&nbsp;"
+                + (deniedTone != null ? "<b style='color:" + deniedTone + "'>" : "<b>") + Model.compact(v.refused()) + "</b> " + (paused ? "would be denied" : "denied")
+                + "&nbsp;&nbsp;·&nbsp;&nbsp;7 days" + (v.pending() > 0 ? "&nbsp;&nbsp;·&nbsp;&nbsp;<b style='color:" + hex(WARN) + "'>" + v.pending() + "</b> need your approval" : "");
+            JBLabel fig = new JBLabel("<html>" + figures + "</html>", UIUtil.ComponentStyle.SMALL);
+            fig.setBorder(JBUI.Borders.emptyTop(6));
+            p.add(left(fig));
             for (Model.VaultGroup g : v.groups()) {
-                p.add(Box.createVerticalStrut(JBUI.scale(12)));
-                JBLabel eyebrow = new JBLabel(g.label() + "  ·  " + g.vaults().size(), UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER);
-                eyebrow.setFont(eyebrow.getFont().deriveFont(java.awt.Font.BOLD));
-                p.add(left(eyebrow));
-                p.add(Box.createVerticalStrut(JBUI.scale(4)));
+                p.add(eyebrow(g.label() + " · " + g.vaults().size()));
                 for (Model.Vault x : g.vaults()) p.add(vaultRow(x, g.kind(), paused));
             }
             return p;
         }
 
+        /** One vault, as the VS Code panel's row: its icon, its name and where it lives with the week's reads under it,
+         *  its state on the right. A click opens it in antitheft. */
         private JComponent vaultRow(Model.Vault x, String kind, boolean paused) {
             JPanel row = new JPanel(new BorderLayout(JBUI.scale(8), 0));
             row.setOpaque(false);
-            row.setBorder(JBUI.Borders.empty(3, 0));
-            Icon icon = s.icon("vault:" + x.id() + "|" + (x.category() == null ? "" : x.category()), this::render);
-            row.add(new JBLabel(icon != null ? icon : kind.equals("wallets") ? AllIcons.Ide.Readonly : kind.equals("secrets") ? AllIcons.Nodes.SecurityRole : AllIcons.Nodes.Folder), BorderLayout.WEST);
+            row.setBorder(JBUI.Borders.empty(4, 0));
+            Icon icon = s.icon("vault:" + x.id() + "|" + (x.category() == null ? "" : x.category()), this::requestRender);
+            JBLabel mark = new JBLabel(icon != null ? icon : kind.equals("wallets") ? AllIcons.Ide.Readonly : kind.equals("secrets") ? AllIcons.Nodes.SecurityRole : AllIcons.Nodes.Folder);
+            mark.setVerticalAlignment(JBLabel.TOP);
+            row.add(mark, BorderLayout.WEST);
             JPanel text = column();
-            JBLabel n = new JBLabel(x.name());
-            n.setFont(JBFont.label().asBold());
-            text.add(left(n));
+            text.add(left(new JBLabel(x.name())));
             String sub = x.where();
             String week = x.refused() > 0 ? Model.compact(x.allowed()) + " reads · " + Model.compact(x.refused()) + " denied" : x.allowed() > 0 ? Model.compact(x.allowed()) + " reads this week" : "";
-            if (!week.isEmpty()) sub = sub.isEmpty() ? week : sub + "  ·  " + week;
+            if (!week.isEmpty()) sub = sub.isEmpty() ? week : sub + " · " + week;
             if (!sub.isEmpty()) text.add(left(new JBLabel(sub, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
             row.add(text, BorderLayout.CENTER);
             boolean locked = x.isLocked();
             String word = paused && locked ? ("license".equals(s.pausedBy) ? "Watching only" : "Paused") : Model.STATUS_LABEL.getOrDefault(x.status(), x.status());
             Color tone = paused && locked ? WARN : "protected".equals(x.status()) ? OK : "partial".equals(x.status()) || "pending".equals(x.status()) ? WARN : UIUtil.getContextHelpForeground();
-            row.add(chip(word, tone, null), BorderLayout.EAST);
+            JComponent state = chip(word, tone, null);
+            ((JBLabel) state).setVerticalAlignment(JBLabel.TOP);
+            row.add(state, BorderLayout.EAST);
+            clickable(row, "Open in antitheft", () -> s.openApp("/vaults"));
             row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
             return left(row);
         }
@@ -336,7 +464,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             JPanel p = column();
             p.setBorder(JBUI.Borders.empty(6, 12, 12, 12));
             switch (s.standing) {
-                case NOT_INSTALLED, NO_ACCESS, NOT_RUNNING -> {
+                case NOT_INSTALLED, NO_ACCESS, NOT_RUNNING, UPDATE_ANTITHEFT, UPDATE_PLUGIN -> {
                     // a setup that is mostly done, the one step left marked: install antitheft (not installed), log
                     // out and back in (installed, this login may not reach it yet), start it (service stopped). The
                     // IDE switches on by itself after.
@@ -360,6 +488,16 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                     if (st == AntitheftService.Standing.NOT_RUNNING) {
                         p.add(left(step(now, JBColor.border(), "Start antitheft", "Its service is stopped. It starts again with your computer", true,
                             button("Check again", () -> com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService().submit(s::recheck)))));
+                    }
+                    // antitheft older than this plugin, or newer than it speaks: the app updates itself, and it installs
+                    // its own copy of the plugin (Settings > Editors)
+                    if (st == AntitheftService.Standing.UPDATE_ANTITHEFT) {
+                        p.add(left(step(now, JBColor.border(), "Update antitheft", "This plugin needs a newer antitheft", true,
+                            button("Open antitheft", () -> s.openApp("/")))));
+                    }
+                    if (st == AntitheftService.Standing.UPDATE_PLUGIN) {
+                        p.add(left(step(now, JBColor.border(), "Update the plugin", "antitheft has a newer version of it for this IDE", true,
+                            button("Open antitheft", () -> s.openApp("/")))));
                     }
                     p.add(left(step(muted, null, "Protected", "This IDE switches on by itself once antitheft runs", false, null)));
                     if (st != AntitheftService.Standing.NOT_INSTALLED) break;
@@ -386,10 +524,66 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return p;
         }
 
+        /** A sentence that wraps to the width it is given ({@link Para}). */
         private static JComponent wrap(String text) {
-            JBLabel l = new JBLabel("<html><body style='width: 260px'>" + escape(text) + "</body></html>");
-            l.setAllowAutoWrapping(true);
-            return l;
+            return new Para(text, JBFont.label(), UIUtil.getLabelForeground());
+        }
+
+        /** Wrapping text that never asks for more width than it has: its preferred size is the width it was given (or its
+         *  parent's) and the height the text takes at that width, measured by the text's own layout. A label instead asked
+         *  for one long line, which made the status row wider than the tool window (the figures and tabs slid off its
+         *  left edge) and its height that of one line (the Get a licence button below was cut off). */
+        private static final class Para extends javax.swing.JTextArea {
+            private int laidOutWidth = -1;
+
+            Para(String text, java.awt.Font font, Color fg) {
+                super(text);
+                setLineWrap(true);
+                setWrapStyleWord(true);
+                setEditable(false);
+                setFocusable(false);
+                setOpaque(false);
+                setBorder(JBUI.Borders.empty());
+                setFont(font);
+                setForeground(fg);
+                setAlignmentX(Component.LEFT_ALIGNMENT);
+                addComponentListener(new java.awt.event.ComponentAdapter() {
+                    @Override
+                    public void componentResized(java.awt.event.ComponentEvent e) {
+                        if (getWidth() != laidOutWidth) {
+                            laidOutWidth = getWidth();
+                            revalidate();
+                        }
+                    }
+                });
+            }
+
+            private int room() {
+                if (getWidth() > 0) return getWidth();
+                java.awt.Container p = getParent();
+                int w = p == null ? 0 : p.getWidth() - p.getInsets().left - p.getInsets().right;
+                return w > 0 ? w : JBUI.scale(240);
+            }
+
+            @Override
+            public Dimension getPreferredSize() {
+                int w = room();
+                javax.swing.text.View root = getUI().getRootView(this);
+                java.awt.Insets in = getInsets();
+                root.setSize(Math.max(1, w - in.left - in.right), Integer.MAX_VALUE);
+                int h = (int) Math.ceil(root.getPreferredSpan(javax.swing.text.View.Y_AXIS)) + in.top + in.bottom;
+                return new Dimension(w, h);
+            }
+
+            @Override
+            public Dimension getMinimumSize() {
+                return new Dimension(JBUI.scale(80), getPreferredSize().height);
+            }
+
+            @Override
+            public Dimension getMaximumSize() {
+                return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+            }
         }
 
         private static String escape(String s) {
@@ -397,21 +591,65 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
         }
 
         /** A real antitheft alert as a picture (icons/alert-example.png: the app's own alert card, rendered at 2x for the
-         *  README's demo attack), 300 px wide; never one rebuilt from the plugin's parts. */
+         *  README's demo attack), as wide as the window up to its own sharp size; never one rebuilt from the plugin's parts. */
         private static JComponent sampleAlert() {
-            JPanel p = column();
             java.net.URL url = AntitheftToolWindowFactory.class.getResource("/icons/alert-example.png");
-            if (url != null) {
-                java.awt.Image img = new javax.swing.ImageIcon(url).getImage();
-                int w = img.getWidth(null), h = img.getHeight(null);
-                if (w > 0 && h > 0) {
-                    int width = JBUI.scale(300);
-                    JBLabel pic = new JBLabel(new javax.swing.ImageIcon(img.getScaledInstance(width, Math.round(h * (width / (float) w)), java.awt.Image.SCALE_SMOOTH)));
-                    pic.setToolTipText("An antitheft alert: a program a plugin started tried to read Google Chrome's passwords and was stopped");
-                    p.add(left(pic));
-                }
+            java.awt.Image img = url == null ? null : new javax.swing.ImageIcon(url).getImage();
+            if (img == null || img.getWidth(null) <= 0 || img.getHeight(null) <= 0) return column();
+            FitImage pic = new FitImage(img);
+            pic.setToolTipText("An antitheft alert: a program a plugin started tried to read Google Chrome's passwords and was stopped");
+            return pic;
+        }
+
+        /** A picture that fills the width it is given, keeping its shape, never past half its pixel width (it is a 2x
+         *  render, so that is as large as it stays sharp). Its height follows its width, so a new width lays it out again. */
+        private static final class FitImage extends JComponent {
+            private final java.awt.Image img;
+            private final int w, h;
+            private int laidOutWidth = -1;
+
+            FitImage(java.awt.Image img) {
+                this.img = img;
+                this.w = img.getWidth(null);
+                this.h = img.getHeight(null);
+                setAlignmentX(Component.LEFT_ALIGNMENT);
+                addComponentListener(new java.awt.event.ComponentAdapter() {
+                    @Override
+                    public void componentResized(java.awt.event.ComponentEvent e) {
+                        if (getWidth() != laidOutWidth) {
+                            laidOutWidth = getWidth();
+                            revalidate();
+                        }
+                    }
+                });
             }
-            return p;
+
+            private int shownWidth() {
+                int max = JBUI.scale(w / 2);
+                int room = getWidth() > 0 ? getWidth() : getParent() != null ? getParent().getWidth() - getParent().getInsets().left - getParent().getInsets().right : max;
+                return Math.max(JBUI.scale(120), Math.min(max, room));
+            }
+
+            @Override
+            public Dimension getPreferredSize() {
+                int sw = shownWidth();
+                return new Dimension(sw, Math.round(h * (sw / (float) w)));
+            }
+
+            @Override
+            public Dimension getMaximumSize() {
+                return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+            }
+
+            @Override
+            protected void paintComponent(java.awt.Graphics g) {
+                java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+                int sw = shownWidth();
+                g2.drawImage(img, 0, 0, sw, Math.round(h * (sw / (float) w)), null);
+                g2.dispose();
+            }
         }
 
         /** One setup step: the status dot as its mark with the hairline down to the next step (none on the last:
@@ -442,7 +680,8 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             if (now) h.setFont(JBFont.label().asBold());
             else h.setForeground(UIUtil.getContextHelpForeground());
             t.add(left(h));
-            t.add(left(new JBLabel(detail, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
+            // wraps in a narrow window instead of ending in "..."
+            t.add(left(muted(detail)));
             if (action != null) {
                 t.add(Box.createVerticalStrut(JBUI.scale(8)));
                 t.add(left(action));
@@ -458,12 +697,22 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
         }
 
         /** The program's (or the vault's) own icon; null when antitheft has none (yet). */
+        /** Who did it: the plugin's own icon when a plugin did, else the program's (its launcher's when it has none). Never
+         *  the vault's: that one sits small beside the vault's name under the title ({@link #vaultIconFor}). */
         private Icon iconFor(Model.Item i) {
             Icon icon = null;
-            if (i.programImage() != null) icon = s.icon("actor:" + i.programImage(), this::render);
-            if (icon == null && i.vaultId() != null) icon = s.icon("vault:" + i.vaultId() + "|", this::render);
-            if (icon == null && i.pluginId() != null && i.programImage() == null) icon = AllIcons.Nodes.Plugin;
+            boolean plugin = i.pluginId() != null && !"unknown".equals(i.pluginId());
+            if (plugin) icon = s.icon("extension:" + i.pluginId(), this::requestRender);
+            if (icon == null && i.programImage() != null) icon = s.icon("actor:" + i.programImage(), this::requestRender);
+            if (icon == null && plugin) icon = AllIcons.Nodes.Plugin;
             return icon;
+        }
+
+        /** The vault's own icon, drawn small beside its name. */
+        private Icon vaultIconFor(Model.Item i) {
+            if (i.vaultId() == null) return null;
+            Icon icon = s.icon("vault:" + i.vaultId() + "|", this::requestRender);
+            return icon == null ? null : com.intellij.util.IconUtil.scale(icon, null, (float) JBUI.scale(14) / Math.max(1, icon.getIconHeight()));
         }
 
         /** The app's placeholder for a program with no icon: its initial in a dashed box. */
@@ -487,86 +736,85 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             };
         }
 
-        private static Color toneColor(Model.Tone t) {
-            return switch (t) {
-                case CRITICAL -> BAD;
-                case WARNING -> WARN;
-                default -> UIUtil.getContextHelpForeground();
-            };
-        }
-
-        /** One alert or activity line as the app's Alerts table draws it: severity (a dot and a word), the sentence with
-         *  its target, who did it (icon and "Claude Code › rm"), when; then its controls. */
+        /** One alert or activity line, the VS Code sidebar's shape for a narrow window: the sentence (bold while it needs
+         *  you), its target, who did it (their icon and "Claude Code › rm"), then severity and when; an alert's actions as
+         *  links, a plugin's own controls as buttons. A click opens it in antitheft. */
         private JComponent card(Model.Item i, boolean withActions) {
             long now = System.currentTimeMillis() / 1000;
             String sev = i.sev();
-            JPanel row = new JPanel(new BorderLayout(JBUI.scale(12), JBUI.scale(4)));
-            row.setBorder(BorderFactory.createCompoundBorder(JBUI.Borders.customLine(JBColor.border(), 0, 0, 1, 0), JBUI.Borders.empty(8, 4)));
-            JBLabel severity = new JBLabel(sev != null ? "<html><span style='color:" + hex(sevColor(sev)) + "'>●</span>&nbsp;" + escape(Model.SEVERITY_LABEL.get(sev)) + "</html>" : Model.word(i.label()), UIUtil.ComponentStyle.SMALL);
-            severity.setForeground(sevColor(sev));
-            severity.setVerticalAlignment(JBLabel.TOP);
-            severity.setPreferredSize(new Dimension(JBUI.scale(84), severity.getPreferredSize().height));
-            row.add(severity, BorderLayout.WEST);
+            JPanel row = new JPanel(new BorderLayout(JBUI.scale(10), 0));
+            row.setOpaque(false);
+            row.setBorder(BorderFactory.createCompoundBorder(JBUI.Borders.customLine(JBColor.border(), 0, 0, 1, 0), JBUI.Borders.empty(8, 0)));
+            String who = i.actorLine() != null ? i.actorLine() : i.pluginName() != null ? i.pluginName() : "";
+            String[] parts = who.split(" › ");
+            JComponent icon = actorIcon(iconFor(i), parts[parts.length - 1]);
+            JPanel iconBox = new JPanel(new BorderLayout());
+            iconBox.setOpaque(false);
+            iconBox.add(icon, BorderLayout.NORTH);
+            row.add(iconBox, BorderLayout.WEST);
             JPanel text = column();
-            JBLabel title = new JBLabel(i.title());
+            JBLabel title = new JBLabel("<html>" + escape(i.title()) + "</html>");
+            title.setAllowAutoWrapping(true);
             if (i.needsYou()) title.setFont(JBFont.label().asBold());
             text.add(left(title));
             String target = i.target() != null && !i.target().isEmpty() ? i.target() : i.needsYou() ? "" : i.detail();
-            if (!target.isEmpty()) text.add(left(new JBLabel(target, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
-            String who = i.actorLine() != null ? i.actorLine() : i.pluginName();
-            if (who != null && !who.isEmpty()) {
-                JPanel actor = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(6), 0));
-                actor.setOpaque(false);
-                String[] parts = who.split(" › ");
-                actor.add(actorIcon(iconFor(i), parts[parts.length - 1]));
-                actor.add(new JBLabel(who + "  ·  " + Model.when(i.at(), now), UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER));
-                text.add(Box.createVerticalStrut(JBUI.scale(4)));
-                text.add(left(actor));
-            }
-            if (withActions) {
-                JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(6), 0));
-                actions.setOpaque(false);
-                if (i.pluginId() != null && !"unknown".equals(i.pluginId())) {
-                    actions.add(button("Disable plugin", () -> PluginActions.disable(i.pluginId())));
-                    actions.add(button("Uninstall", () -> PluginActions.uninstall(i.pluginId())));
+            if (target != null && !target.isEmpty()) {
+                // the vault's icon, small, beside its name
+                JBLabel t = muted(target);
+                Icon vaultIcon = vaultIconFor(i);
+                if (vaultIcon != null) {
+                    t.setIcon(vaultIcon);
+                    t.setIconTextGap(JBUI.scale(6));
                 }
-                if (i.needsYou()) actions.add(button("Mark reviewed", () -> s.review(List.of(i))));
-                if (i.alertId() != null) actions.add(button("Open in antitheft", () -> s.openApp("/alerts?id=" + i.alertId())));
-                text.add(Box.createVerticalStrut(JBUI.scale(6)));
-                text.add(left(actions));
+                text.add(left(t));
+            }
+            if (!who.isEmpty()) text.add(left(muted(who)));
+            String word = Model.SEVERITY_LABEL.getOrDefault(sev == null ? "" : sev, Model.word(i.label()));
+            JBLabel meta = new JBLabel("<html><span style='color:" + hex(sevColor(sev)) + "'>●&nbsp;" + escape(word) + "</span>&nbsp;&nbsp;" + escape(Model.when(i.at(), now)) + "</html>",
+                UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER);
+            meta.setBorder(JBUI.Borders.emptyTop(2));
+            text.add(left(meta));
+            if (withActions) {
+                JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+                actions.setOpaque(false);
+                actions.setBorder(JBUI.Borders.emptyTop(6));
+                boolean own = i.pluginId() != null && !"unknown".equals(i.pluginId());
+                if (own) {
+                    JButton disable = button("Disable plugin", () -> PluginActions.disable(i.pluginId()));
+                    disable.putClientProperty(com.intellij.ide.ui.laf.darcula.ui.DarculaButtonUI.DEFAULT_STYLE_KEY, Boolean.TRUE);
+                    actions.add(disable);
+                    actions.add(Box.createHorizontalStrut(JBUI.scale(6)));
+                    actions.add(button("Uninstall", () -> PluginActions.uninstall(i.pluginId())));
+                    actions.add(Box.createHorizontalStrut(JBUI.scale(12)));
+                }
+                if (i.needsYou()) {
+                    actions.add(link("Mark reviewed", () -> s.review(List.of(i))));
+                    actions.add(Box.createHorizontalStrut(JBUI.scale(12)));
+                }
+                if (i.alertId() != null) actions.add(link("Open in antitheft", () -> s.openApp("/alerts?id=" + i.alertId())));
+                if (actions.getComponentCount() > 0) text.add(left(actions));
             }
             row.add(text, BorderLayout.CENTER);
-            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
+            if (i.alertId() != null) clickable(row, "Open in antitheft", () -> s.openApp("/alerts?id=" + i.alertId()));
             return left(row);
         }
 
-        private JComponent list(List<JComponent> rows, String emptyTitle, String emptyText) {
+        /** A tab's page: its head, then the rows; empty, one grey line under the head (no mark, no second title). */
+        private JComponent list(JComponent head, List<JComponent> rows, String emptyText) {
             JPanel p = column();
-            p.setBorder(JBUI.Borders.empty(8, 12));
-            if (rows.isEmpty()) {
-                JBLabel t = new JBLabel(emptyTitle, PROTECTED, JBLabel.LEFT);
-                t.setFont(JBFont.label().asBold());
-                p.add(left(t));
-                p.add(left(new JBLabel(emptyText, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
-            }
-            for (JComponent r : rows) {
-                p.add(r);
-                p.add(Box.createVerticalStrut(JBUI.scale(8)));
-            }
+            p.setBorder(JBUI.Borders.empty(10, 12));
+            p.add(head);
+            if (rows.isEmpty()) p.add(left(muted(emptyText)));
+            for (JComponent r : rows) p.add(r);
             return p;
         }
 
         private JComponent alerts(List<Model.Item> needs) {
             List<JComponent> rows = new ArrayList<>();
-            if (needs.size() > 1) {
-                JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-                bar.setOpaque(false);
-                bar.add(button("Mark all reviewed", () -> s.review(needs)));
-                bar.setMaximumSize(new Dimension(Integer.MAX_VALUE, bar.getPreferredSize().height));
-                rows.add(left(bar));
-            }
             for (Model.Item i : needs) rows.add(card(i, true));
-            return list(rows, "Nothing needs you", "antitheft is watching every plugin in this IDE.");
+            String sub = needs.isEmpty() ? "Nothing from this IDE needs you" : Model.plural(needs.size(), "alert") + " from this IDE, " + (needs.size() == 1 ? "it needs" : "they need") + " you";
+            return list(head("Alerts", sub, needs.size() > 1 ? link("Mark all reviewed", () -> s.review(needs)) : null), rows,
+                "antitheft is watching every plugin in this IDE");
         }
 
         private JComponent activity() {
@@ -574,58 +822,83 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             long cleared = s.activityClearedAt();
             List<Model.Item> shown = s.items.stream().filter(i -> i.needsYou() || i.at() > cleared).toList();
             List<JComponent> rows = new ArrayList<>();
-            if (shown.stream().anyMatch(i -> !i.needsYou())) {
-                JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-                bar.setOpaque(false);
-                bar.add(button("Clear", s::clearActivity));
-                bar.setMaximumSize(new Dimension(Integer.MAX_VALUE, bar.getPreferredSize().height));
-                rows.add(left(bar));
-            }
             for (Model.Item i : shown) rows.add(card(i, false));
-            return list(rows, "Nothing new", "What plugins do in this IDE shows here.");
+            boolean clearable = shown.stream().anyMatch(i -> !i.needsYou());
+            return list(head("Activity", Model.plural(shown.size(), "thing") + " plugins did in this IDE", clearable ? link("Clear", s::clearActivity) : null), rows,
+                "What plugins do in this IDE shows here");
         }
 
         private JComponent plugins() {
             Map<String, List<Model.Item>> by = new java.util.HashMap<>();
             for (Model.Item i : s.items) if (i.pluginId() != null) by.computeIfAbsent(i.pluginId(), k -> new ArrayList<>()).add(i);
-            List<JComponent> rows = new ArrayList<>();
-            List<IdeaPluginDescriptor> quiet = new ArrayList<>();
-            for (IdeaPluginDescriptor d : PluginManagerCore.getPlugins()) {
-                String id = d.getPluginId().getIdString();
-                if (id.equals(AntitheftService.OWN_ID) || d.isBundled()) continue;
+            List<JComponent> attention = new ArrayList<>();
+            List<JComponent> quiet = new ArrayList<>();
+            long now = System.currentTimeMillis() / 1000;
+            for (Plugins.Info d : Plugins.installed()) {
+                String id = d.id();
+                if (id.equals(AntitheftService.OWN_ID)) continue;
                 List<Model.Item> its = by.getOrDefault(id, List.of());
                 if (its.stream().anyMatch(Model.Item::needsYou)) {
+                    // what it tried, each line as the alert says it, then its controls
                     JPanel card = column();
                     card.setBorder(BorderFactory.createCompoundBorder(JBUI.Borders.customLine(BAD, 1), JBUI.Borders.empty(8, 10)));
-                    JBLabel name = new JBLabel(d.getName() + "  " + d.getVersion(), AllIcons.Nodes.Plugin, JBLabel.LEFT);
-                    name.setFont(JBFont.label().asBold());
-                    card.add(left(name));
+                    card.add(left(pluginHead(d)));
                     for (Model.Item i : its) {
-                        JBLabel l = new JBLabel(Model.word(i.label()) + "   " + i.title(), UIUtil.ComponentStyle.SMALL);
-                        l.setForeground(toneColor(i.tone()));
+                        String sev = i.sev();
+                        String word = Model.SEVERITY_LABEL.getOrDefault(sev == null ? "" : sev, Model.word(i.label()));
+                        JBLabel l = new JBLabel("<html><span style='color:" + hex(sevColor(sev)) + "'>●&nbsp;" + escape(word) + "</span>&nbsp;&nbsp;" + escape(i.title())
+                            + "&nbsp;&nbsp;<span style='color:" + hex(UIUtil.getContextHelpForeground()) + "'>" + escape(Model.when(i.at(), now)) + "</span></html>", UIUtil.ComponentStyle.SMALL);
+                        l.setAllowAutoWrapping(true);
+                        l.setBorder(JBUI.Borders.emptyTop(4));
                         card.add(left(l));
                     }
-                    JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, JBUI.scale(6), JBUI.scale(4)));
+                    JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
                     actions.setOpaque(false);
-                    actions.add(button("Disable", () -> PluginActions.disable(id)));
+                    actions.setBorder(JBUI.Borders.emptyTop(8));
+                    JButton disable = button("Disable", () -> PluginActions.disable(id));
+                    disable.putClientProperty(com.intellij.ide.ui.laf.darcula.ui.DarculaButtonUI.DEFAULT_STYLE_KEY, Boolean.TRUE);
+                    actions.add(disable);
+                    actions.add(Box.createHorizontalStrut(JBUI.scale(6)));
                     actions.add(button("Uninstall", () -> PluginActions.uninstall(id)));
                     card.add(left(actions));
-                    card.setMaximumSize(new Dimension(Integer.MAX_VALUE, card.getPreferredSize().height));
-                    rows.add(0, left(card));
+                    attention.add(left(card));
                 } else {
-                    quiet.add(d);
+                    long started = its.size();
+                    JPanel row = column();
+                    row.setBorder(JBUI.Borders.empty(4, 0));
+                    row.add(left(pluginHead(d)));
+                    JBLabel sub = muted(started > 0 ? "Started " + Model.plural((int) started, "program") + ". None of them touched your vaults" : "Nothing seen");
+                    sub.setBorder(JBUI.Borders.emptyLeft(AllIcons.Nodes.Plugin.getIconWidth() + JBUI.scale(8)));
+                    row.add(left(sub));
+                    quiet.add(left(row));
                 }
             }
-            for (IdeaPluginDescriptor d : quiet) {
-                long started = by.getOrDefault(d.getPluginId().getIdString(), List.of()).size();
-                JPanel row = new JPanel(new BorderLayout(JBUI.scale(8), 0));
-                row.setOpaque(false);
-                row.add(new JBLabel(d.getName(), AllIcons.Nodes.Plugin, JBLabel.LEFT), BorderLayout.WEST);
-                row.add(new JBLabel(started > 0 ? "Started " + started + " programs. None touched your vaults." : "Nothing seen.", UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER), BorderLayout.CENTER);
-                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
-                rows.add(left(row));
+            List<JComponent> rows = new ArrayList<>();
+            if (!attention.isEmpty()) {
+                rows.add(eyebrow("Needs your attention"));
+                rows.addAll(attention);
             }
-            return list(rows, "No plugins installed", "Only the IDE's own plugins are here.");
+            if (!quiet.isEmpty()) {
+                rows.add(eyebrow("Nothing to worry about"));
+                rows.addAll(quiet);
+            }
+            int total = attention.size() + quiet.size();
+            String sub = Model.plural(total, "plugin") + " installed, " + (attention.isEmpty() ? "none needs your attention" : attention.size() + " " + (attention.size() == 1 ? "needs" : "need") + " your attention");
+            return list(head("Plugins", total == 0 ? "No plugins installed" : sub, null), rows, "Only the IDE's own plugins are here");
+        }
+
+        /** A plugin's name with its version, the plugin glyph before it. */
+        private static JComponent pluginHead(Plugins.Info d) {
+            JBLabel name = new JBLabel(d.name(), AllIcons.Nodes.Plugin, JBLabel.LEFT);
+            name.setIconTextGap(JBUI.scale(8));
+            JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+            p.setOpaque(false);
+            p.add(name);
+            if (d.version() != null) {
+                JBLabel v = new JBLabel("  " + d.version(), UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER);
+                p.add(v);
+            }
+            return p;
         }
     }
 

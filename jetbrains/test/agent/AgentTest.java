@@ -56,6 +56,25 @@ public final class AgentTest {
         allowed("an ordinary FileInputStream", () -> new FileInputStream(other).close());
         allowed("an ordinary launch", () -> (windows ? new ProcessBuilder("cmd.exe", "/c", "echo ok") : new ProcessBuilder("true")).start().waitFor());
 
+        // an ACP agent the IDE's agent code starts runs behind the bridge (here /bin/echo stands in for antitheft-cli,
+        // so the process prints the command it was given); nothing else changes
+        if (!windows) {
+            g.getMethod("setBridge", String.class).invoke(null, "/bin/echo");
+            // the "agent" is /bin/true: unbridged it prints nothing, bridged echo prints the command it was given
+            String agent = AcpLauncher.run("/bin/true", "-y", "@agentclientprotocol/claude-agent-acp@0.100.0");
+            if (!agent.equals("acp --agent claude-code -- /bin/true -y @agentclientprotocol/claude-agent-acp@0.100.0")) failures.add("ACP agent not bridged: " + agent);
+            String gemini = AcpLauncher.run("/bin/true", "/x/bin/gemini", "--acp");
+            if (!gemini.startsWith("acp --agent gemini -- ")) failures.add("gemini --acp not bridged: " + gemini);
+            String shell = AcpLauncher.run("/bin/true", "ls", "-la");
+            if (!shell.isEmpty()) failures.add("an ordinary command from the agent code was changed: " + shell);
+            String elsewhere = output(new ProcessBuilder("/bin/true", "@agentclientprotocol/codex-acp@2.5.0"));
+            if (!elsewhere.isEmpty()) failures.add("an ACP command not started by agent code was changed: " + elsewhere);
+            g.getMethod("setBridge", String.class).invoke(null, (Object) null);
+            String off = AcpLauncher.run("/bin/true", "@agentclientprotocol/codex-acp@2.5.0");
+            if (!off.isEmpty()) failures.add("bridged while not connected: " + off);
+            System.out.println("ACP bridge: ok");
+        }
+
         @SuppressWarnings("unchecked")
         List<String[]> events = (List<String[]>) g.getMethod("drain").invoke(null);
         long blocked = events.stream().filter(e -> e[0].equals("blocked")).count();
@@ -67,6 +86,20 @@ public final class AgentTest {
 
         System.out.println(failures.isEmpty() ? "PASSED" : "FAILED:\n  " + String.join("\n  ", failures));
         System.exit(failures.isEmpty() ? 0 : 1);
+    }
+
+    /** Stands in for an IDE's ACP code (Android Studio's AcpAgent..., the ACP SDK): what it starts may be an agent. */
+    static final class AcpLauncher {
+        static String run(String... cmd) throws Exception {
+            return output(new ProcessBuilder(cmd));
+        }
+    }
+
+    static String output(ProcessBuilder pb) throws Exception {
+        Process p = pb.redirectErrorStream(true).start();
+        String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+        p.waitFor();
+        return out;
     }
 
     static void refused(String name, Route r) {

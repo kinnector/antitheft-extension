@@ -82,9 +82,68 @@ public final class Guard {
         if (p != null) check(String.valueOf(p), op);
     }
 
-    /** ProcessBuilder.start: a command naming a vault is refused. */
+    /** `antitheft-cli` while the plugin is connected to antitheft (null otherwise): the ACP bridge's program. */
+    private static volatile String bridge;
+
+    public static void setBridge(String cli) {
+        bridge = cli == null || cli.isEmpty() ? null : cli;
+    }
+
+    /** A class of the IDE's agent code: Android Studio's (com.google.studiobot.agentsdk.acp, com.google.aiplugin.acp),
+     *  the ACP SDK's (com.agentclientprotocol), JetBrains AI Assistant's ACP agents. */
+    private static final java.util.regex.Pattern ACP_CLASS = java.util.regex.Pattern.compile("(^|\\.)acp(\\.|$)|^com\\.agentclientprotocol\\.|[.$]Acp[A-Z]");
+
+    /**
+     * An ACP agent the IDE starts (its own Claude Agent, Codex, Gemini, Antigravity, or any other) runs behind
+     * `antitheft-cli acp`, transparently: the same entry, the same program, only the bridge in front of it, which checks
+     * the files the agent asks the IDE to read and the commands it asks it to run, and refuses a vault with the reason.
+     * Only when the IDE's agent code starts it AND the command is an ACP agent's, so nothing else the IDE runs (a
+     * terminal command, a build) changes.
+     */
+    static void bridgeAcpAgent(ProcessBuilder pb) {
+        String cli = bridge;
+        if (cli == null) return;
+        List<String> cmd = pb.command();
+        if (cmd.isEmpty() || cmd.get(0).equals(cli)) return;
+        String agent = acpAgentOf(cmd);
+        if (agent == null || !fromAcpCode()) return;
+        List<String> wrapped = new java.util.ArrayList<>(List.of(cli, "acp", "--agent", agent, "--"));
+        wrapped.addAll(cmd);
+        pb.command(wrapped);
+    }
+
+    /** Which agent an ACP launch is, for the check's `agent` field; null when the command is not an ACP agent's. */
+    static String acpAgentOf(List<String> cmd) {
+        String all = String.join(" ", cmd).toLowerCase(java.util.Locale.ROOT);
+        if (all.contains("claude-agent-acp") || all.contains("claude-code-acp")) return "claude-code";
+        if (all.contains("codex-acp")) return "codex";
+        if (all.contains("agy_acp") || all.contains("agy-acp")) return "antigravity";
+        if (all.contains("gemini") && (cmd.contains("--acp") || cmd.contains("--experimental-acp"))) return "gemini";
+        for (String w : cmd) {
+            String n = new File(w).getName().toLowerCase(java.util.Locale.ROOT);
+            if (n.equals("acp") || n.equals("--acp") || n.endsWith("-acp") || n.contains("-acp@") || n.startsWith("acp-") || n.endsWith("_acp")) return "acp";
+        }
+        return null;
+    }
+
+    private static boolean fromAcpCode() {
+        try {
+            return StackWalker.getInstance().walk(s -> s.map(StackWalker.StackFrame::getClassName)
+                .anyMatch(c -> !c.startsWith("pro.antitheft.") && ACP_CLASS.matcher(c).find()));
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** ProcessBuilder.start: a command naming a vault is refused; an ACP agent goes behind the bridge. */
     public static void checkStart(Object pb) {
-        if (BUSY.get() != null || empty()) return;
+        if (BUSY.get() != null) return;
+        try {
+            bridgeAcpAgent((ProcessBuilder) pb);
+        } catch (Throwable ignored) {
+            // never in the way of a launch
+        }
+        if (empty()) return;
         List<String> cmd = ((ProcessBuilder) pb).command();
         File dir = ((ProcessBuilder) pb).directory();
         for (String w : cmd) {
@@ -245,8 +304,20 @@ public final class Guard {
     private static void refuse(String op, String p, Class<? extends IOException> kind) {
         String[] c = culprit();
         event("blocked", c, op, absolute(p), null, null, isDecoy(p));
-        String msg = p + " (antitheft: this file belongs to a protected app)";
+        // An agent in the IDE (Android Studio's and the JetBrains AI Assistant's agents read through the IDE's own
+        // tools) gets this text as the tool's error, so it says what happened and what to do instead. No access can
+        // be granted to a read the IDE makes, so it never suggests asking for one.
+        String msg = p + " (antitheft refused this read: the file is a vault that only its own app may open. "
+            + "Do not try to read it another way: another program that tries is refused too and is ended. "
+            + "Leave this file out of the task, or tell the user it is protected by antitheft.)";
         sneaky(kind == FileNotFoundException.class ? new FileNotFoundException(msg) : new IOException(msg));
+    }
+
+    /** The plugin's "an event is waiting" call (`onEvent`): it reports at once instead of waiting for its next look. */
+    private static volatile Runnable listener;
+
+    public static void onEvent(Runnable r) {
+        listener = r;
     }
 
     private static void event(String kind, String[] culprit, String op, String path, String pid, String command, boolean decoy) {
@@ -254,6 +325,14 @@ public final class Guard {
         String id = culprit == null ? "unknown" : culprit[0];
         String builtin = culprit == null ? "false" : culprit[1];
         EVENTS.add(new String[] {kind, id, builtin, op, path, pid, command, String.valueOf(decoy)});
+        Runnable r = listener;
+        if (r != null) {
+            try {
+                r.run();
+            } catch (Throwable ignored) {
+                // never in the way of what the IDE was doing
+            }
+        }
     }
 
     /** The plugin behind the current call: {id, builtin}, or null (the IDE itself, the JDK). */

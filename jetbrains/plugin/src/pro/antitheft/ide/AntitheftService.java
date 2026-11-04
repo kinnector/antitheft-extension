@@ -4,8 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationAction;
 import com.intellij.notification.NotificationGroupManager;
@@ -15,7 +13,6 @@ import com.intellij.openapi.application.ApplicationInfo;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.components.Service;
-import com.intellij.openapi.extensions.PluginId;
 import com.intellij.util.concurrency.AppExecutorUtil;
 
 import javax.swing.Icon;
@@ -45,8 +42,37 @@ public final class AntitheftService implements Disposable {
     static final String OWN_ID = "pro.antitheft";
 
     /** NO_ACCESS: installed and running, but this login may not use the socket yet (the installer added the person to
-     *  its group, which takes effect at their next login). */
-    enum Standing { CHECKING, NOT_INSTALLED, NO_ACCESS, NOT_RUNNING, PAUSED, PROTECTED }
+     *  its group, which takes effect at their next login). UPDATE_ANTITHEFT: running, but older than this plugin (no
+     *  editor API, a 404 on hello, or an older one). UPDATE_PLUGIN: running, and newer than this plugin speaks (426 on
+     *  hello): antitheft installs its own copy. */
+    enum Standing { CHECKING, NOT_INSTALLED, NO_ACCESS, NOT_RUNNING, UPDATE_ANTITHEFT, UPDATE_PLUGIN, PAUSED, PROTECTED }
+
+    /** The editor API this plugin speaks, sent on hello; antitheft answers 426 when it no longer serves it. */
+    static final int IDE_API = 1;
+    /** The oldest antitheft editor API this plugin can use. An answer with no {@code api} is 1. */
+    static final int MIN_DAEMON_API = 1;
+
+    /** What a hello's answer means: null = connected, else the standing to show (the guard stays off). A 404 with
+     *  none of antitheft's own error codes is a route that does not exist: an antitheft from before the editor API.
+     *  The same rules as the VS Code extension's {@code helloStanding}. */
+    static Standing helloStanding(Integer status, JsonObject body) {
+        if (status == null) return Standing.NOT_RUNNING;
+        boolean ownCode = body != null && body.has("code") && body.get("code").isJsonPrimitive() && body.get("code").getAsJsonPrimitive().isString();
+        if (status == 426 || (ownCode && "extension_outdated".equals(body.get("code").getAsString()))) return Standing.UPDATE_PLUGIN;
+        if (status == 404 && !ownCode) return Standing.UPDATE_ANTITHEFT;
+        if (status < 200 || status >= 300) return Standing.NOT_RUNNING;
+        int api = body != null && body.has("api") && body.get("api").isJsonPrimitive() && body.get("api").getAsJsonPrimitive().isNumber() ? body.get("api").getAsInt() : 1;
+        return api < MIN_DAEMON_API ? Standing.UPDATE_ANTITHEFT : null;
+    }
+
+    private static JsonObject jsonObject(String text) {
+        try {
+            com.google.gson.JsonElement e = JsonParser.parseString(text);
+            return e.isJsonObject() ? e.getAsJsonObject() : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
 
     volatile Standing standing = Standing.CHECKING;
     volatile boolean systemLevel = true;
@@ -70,7 +96,7 @@ public final class AntitheftService implements Disposable {
     private final Map<String, Long> lastLaunch = new ConcurrentHashMap<>();
     private ScheduledFuture<?> heartbeat;
     private ScheduledFuture<?> drain;
-    private ScheduledFuture<?> retry;
+    private volatile ScheduledFuture<?> retry;
     private long retryDelay = 2000;
     private volatile boolean disposed;
     private Thread streamThread;
@@ -175,29 +201,52 @@ public final class AntitheftService implements Disposable {
         body.addProperty("app", ideName());
         body.addProperty("app_version", ApplicationInfo.getInstance().getFullVersion());
         body.addProperty("extension_version", ownVersion());
+        body.addProperty("api", IDE_API);
         Daemon.Response r = Daemon.request("POST", "/api/v1/ide/hello", gson.toJson(body));
-        if (r == null || r.status() != 200) {
-            standing = Standing.NOT_RUNNING;
+        JsonObject answer = r == null ? null : jsonObject(r.text());
+        // an antitheft older or newer than this plugin can speak is a step left, never "not running"
+        Standing left = helloStanding(r == null ? null : r.status(), answer);
+        if (left != null || answer == null) {
+            standing = left != null ? left : Standing.NOT_RUNNING;
             scheduleRetry();
             return;
         }
-        JsonObject hello = JsonParser.parseString(r.text()).getAsJsonObject();
+        JsonObject hello = answer;
         ideId = hello.get("ide_id").getAsString();
+        iconSent.clear();
         retryDelay = 2000;
         guardAvailable = attachGuard();
+        guardCall("setBridge", new Class<?>[] {String.class}, bridgeProgram());
         applyPrefixes(hello.getAsJsonObject("prefixes"));
         applyStanding();
         hooks = SelfCheck.run(guardAvailable);
         sendHeartbeat();
         long every = Math.max(15, hello.has("heartbeat_secs") ? hello.get("heartbeat_secs").getAsLong() : 60);
         heartbeat = AppExecutorUtil.getAppScheduledExecutorService().scheduleWithFixedDelay(this::sendHeartbeat, every, every, TimeUnit.SECONDS);
-        drain = AppExecutorUtil.getAppScheduledExecutorService().scheduleWithFixedDelay(this::drainAndReport, 1, 1, TimeUnit.SECONDS);
+        // Pushed, not polled: the guard calls this the moment it records a launch, a write or a refusal, so antitheft
+        // knows which plugin started a program while that program runs (`cat` is gone in a millisecond). The slow
+        // sweep only catches what came in before this connection.
+        guardCall("onEvent", new Class<?>[] {Runnable.class}, (Runnable) () -> AppExecutorUtil.getAppExecutorService().submit(this::drainAndReport));
+        drain = AppExecutorUtil.getAppScheduledExecutorService().scheduleWithFixedDelay(this::drainAndReport, 1, 30, TimeUnit.SECONDS);
         followAlerts();
         refresh();
     }
 
+    /** antitheft-cli where antitheft installs it, when it is there: the program the guard puts in front of an ACP agent
+     *  the IDE starts (the IDE's own Claude Agent, Codex, ...), so their reads through the IDE are checked too. */
+    static String bridgeProgram() {
+        String os = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT);
+        String p = os.contains("win") ? "C:\\Program Files\\Antitheft\\antitheft-cli.exe"
+            : os.contains("mac") ? "/Library/Application Support/Antitheft/antitheft-cli"
+            : "/usr/lib/antitheft/current/antitheft-cli";
+        return new File(p).canExecute() ? p : null;
+    }
+
     private void disconnect() {
         guardCall("update", new Class<?>[] {String.class, String[].class, String[].class}, "", new String[0], new String[0]);
+        // not connected: an agent started now runs as the IDE starts it (the bridge would refuse every read, unable to check)
+        guardCall("setBridge", new Class<?>[] {String.class}, (Object) null);
+        guardCall("onEvent", new Class<?>[] {Runnable.class}, (Object) null);
         ideId = null;
         if (heartbeat != null) heartbeat.cancel(false);
         if (drain != null) drain.cancel(false);
@@ -205,17 +254,17 @@ public final class AntitheftService implements Disposable {
     }
 
     private String ownVersion() {
-        IdeaPluginDescriptor d = PluginManagerCore.getPlugin(PluginId.getId(OWN_ID));
-        return d == null ? "" : d.getVersion();
+        Plugins.Info d = Plugins.self();
+        return d == null || d.version() == null ? "" : d.version();
     }
 
     /** Attaches the guard to this IDE's own JVM (PyCharm and the other IDEs allow attaching to themselves). */
     private boolean attachGuard() {
         if (guardCall("installed", new Class<?>[0]) == Boolean.TRUE) return true;
         try {
-            IdeaPluginDescriptor self = PluginManagerCore.getPlugin(PluginId.getId(OWN_ID));
-            if (self == null) throw new IllegalStateException("this plugin is not registered");
-            Path jar = self.getPluginPath().resolve("lib").resolve("antitheft-agent.jar");
+            Plugins.Info self = Plugins.self();
+            if (self == null) throw new IllegalStateException("this plugin's own folder was not found");
+            Path jar = self.home().resolve("lib").resolve("antitheft-agent.jar");
             com.sun.tools.attach.VirtualMachine vm = com.sun.tools.attach.VirtualMachine.attach(String.valueOf(ProcessHandle.current().pid()));
             try {
                 vm.loadAgent(jar.toString(), OWN_ID);
@@ -284,24 +333,46 @@ public final class AntitheftService implements Disposable {
     }
 
     @SuppressWarnings("unchecked")
+    private final Object reportLock = new Object();
+
+    /** One report at a time (the guard's push and the sweep can arrive together); the queue is the guard's. */
     private void drainAndReport() {
+        synchronized (reportLock) {
+            drainAndReportLocked();
+        }
+    }
+
+    private void drainAndReportLocked() {
         Object got = guardCall("drain", new Class<?>[0]);
         if (!(got instanceof List<?> list) || list.isEmpty() || ideId == null) return;
         JsonArray items = new JsonArray();
         for (Object o : list) {
             String[] e = (String[]) o;
             if ("true".equals(e[7])) continue; // the self-check's decoy
+            // Every launch is reported, so each process is named. The same program launched again by the same plugin
+            // within a minute (a plugin running git all day) goes as a quiet repeat: it names its process's alerts
+            // and is not listed again.
+            boolean quiet = false;
             if ("spawn".equals(e[0])) {
-                // the same program launched again and again by the same plugin: the first launch a minute
                 String key = e[1] + "\u0000" + (e[6] == null ? "" : Model.programOf(e[6]));
                 long now = System.currentTimeMillis();
-                if (now - lastLaunch.getOrDefault(key, 0L) < 60_000) continue;
-                if (lastLaunch.size() > 2000) lastLaunch.clear();
-                lastLaunch.put(key, now);
+                quiet = now - lastLaunch.getOrDefault(key, 0L) < 60_000;
+                if (!quiet) {
+                    if (lastLaunch.size() > 2000) lastLaunch.clear();
+                    lastLaunch.put(key, now);
+                }
             }
             JsonObject it = new JsonObject();
+            if (quiet) it.addProperty("quiet", true);
             it.addProperty("kind", e[0]);
             it.addProperty("extension_id", e[1]);
+            // the plugin's own name and, once per connection, its icon: antitheft's alerts name the plugin with them
+            String pluginName = pluginName(e[1]);
+            if (pluginName != null) it.addProperty("extension_name", pluginName);
+            if (iconSent.add(e[1])) {
+                JsonObject icon = pluginIcon(e[1]);
+                if (icon != null) it.add("extension_icon", icon);
+            }
             if (e[3] != null) it.addProperty("op", e[3]);
             if (e[4] != null) it.addProperty("path", e[4]);
             if (e[5] != null) it.addProperty("pid", Long.parseLong(e[5]));
@@ -416,10 +487,28 @@ public final class AntitheftService implements Disposable {
         });
     }
 
+    /** Plugins whose icon this connection has sent (cleared on every connect: a restarted daemon has none). */
+    private final Set<String> iconSent = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** A plugin's own icon (`META-INF/pluginIcon.svg` in it), as antitheft takes images: {content_type, data_base64}. */
+    static JsonObject pluginIcon(String id) {
+        try {
+            // read from the plugin's own jars (Plugins.icon), so a plugin with no icon of its own never gets the platform's
+            byte[] svg = Plugins.icon(Plugins.find(id));
+            if (svg == null) return null;
+            JsonObject o = new JsonObject();
+            o.addProperty("content_type", "image/svg+xml");
+            o.addProperty("data_base64", java.util.Base64.getEncoder().encodeToString(svg));
+            return o;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     static String pluginName(String id) {
         try {
-            IdeaPluginDescriptor d = PluginManagerCore.getPlugin(PluginId.getId(id));
-            return d == null ? null : d.getName();
+            Plugins.Info d = Plugins.find(id);
+            return d == null ? null : d.name();
         } catch (Throwable t) {
             return null;
         }
@@ -525,6 +614,9 @@ public final class AntitheftService implements Disposable {
                 paths.add("/api/v1/icon/" + enc(id));
                 if (!id.contains(":")) paths.add("/api/v1/icon/actor?title=" + enc(id));
                 if (!category.isEmpty()) paths.add("/api/v1/icon/category/" + enc(category));
+            } else if (key.startsWith("extension:")) {
+                // a plugin's own icon, as this IDE sent it with its reports
+                paths.add("/api/v1/icon/extension?id=" + enc(key.substring(10)));
             } else {
                 paths.add("/api/v1/icon/actor?image=" + enc(key.substring(6)));
             }
@@ -584,9 +676,17 @@ public final class AntitheftService implements Disposable {
         return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8);
     }
 
+    /** The next look for antitheft. The retry clears itself before it rechecks: its recheck schedules the next one, and
+     *  a retry still running counts as not done, so the chain used to stop after one try and the IDE stayed
+     *  disconnected after a daemon restart until Recheck was clicked. Installed but not running (an update, a restart)
+     *  is back in seconds, so it is looked for every few seconds; not installed backs off to a minute. */
     private void scheduleRetry() {
         if (disposed || (retry != null && !retry.isDone())) return;
-        retry = AppExecutorUtil.getAppScheduledExecutorService().schedule(this::recheck, retryDelay, TimeUnit.MILLISECONDS);
+        long delay = standing == Standing.NOT_INSTALLED ? retryDelay : Math.min(retryDelay, 4000);
+        retry = AppExecutorUtil.getAppScheduledExecutorService().schedule(() -> {
+            retry = null;
+            recheck();
+        }, delay, TimeUnit.MILLISECONDS);
         retryDelay = Math.min(retryDelay * 2, 60000);
     }
 

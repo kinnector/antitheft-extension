@@ -2,7 +2,12 @@
 # Builds the JetBrains plugin with an installed IDE's own JDK and libraries, no Gradle:
 #
 #   IDE_HOME=/Applications/PyCharm.app/Contents ./build.sh [--dev]
+#   IDE_HOME=... ./build.sh --store                     # the JetBrains Marketplace copy, into build-store/
 #   JDK21=<home> JDK25=<home> ./build.sh --agent        # the agent alone, no IDE (test/agent.sh)
+#
+# --store is the release build with no internal IDE API (Marketplace approval refuses it): plugin/store/ replaces
+# the matching files of plugin/src/ (DirectDisable: no PluginEnabler, Disable opens Settings > Plugins). antitheft
+# installs the plain release build over a store copy, so the two share the id and the version.
 #
 # Output: build/antitheft.zip, a plugin you install from disk (Settings > Plugins > Install Plugin from Disk),
 # holding lib/antitheft-plugin.jar, lib/antitheft-agent.jar (the guard the plugin attaches to the IDE) and
@@ -14,7 +19,7 @@
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 mode=release
-case "${1:-}" in --dev) mode=dev ;; --agent) mode=agent ;; esac
+case "${1:-}" in --dev) mode=dev ;; --agent) mode=agent ;; --store) mode=store ;; esac
 home() { if [ -x "$1/Contents/Home/bin/javac" ]; then echo "$1/Contents/Home"; else echo "$1"; fi; }
 major() { "$1/bin/javac" -version 2>&1 | sed -E 's/^javac ([0-9]+).*/\1/'; }
 
@@ -39,6 +44,7 @@ v=$(major "$JDK_OLD")
 [ "$v" -ge 21 ] && [ "$v" -le 23 ] || { echo "JDK 21-23 needed, got $JDK_OLD" >&2; exit 1; }
 
 out=$here/build
+[ "$mode" = store ] && out=$here/build-store
 rm -rf "$out"
 mkdir -p "$out/guard" "$out/agent" "$out/plugin" "$out/dist/antitheft/lib"
 A=$here/agent/src/pro/antitheft
@@ -62,6 +68,11 @@ dev=false
 [ "$mode" = dev ] && dev=true
 mkdir -p "$out/src"
 cp -R "$here/plugin/src/." "$out/src/"
+if [ "$mode" = store ]; then
+  cp -R "$here/plugin/store/." "$out/src/"
+  # our package reaches them only by import or full name (comments may name them)
+  ! grep -rlE 'com\.intellij\.ide\.plugins\.(PluginEnabler|PluginManagerCore)' "$out/src" || { echo "build.sh --store: internal plugin API left in the files above" >&2; exit 1; }
+fi
 sed -i.bak "s/static final boolean ENABLED = false;/static final boolean ENABLED = $dev;/" "$out/src/pro/antitheft/ide/Dev.java" && rm "$out/src/pro/antitheft/ide/Dev.java.bak"
 "$JDK/bin/javac" --release 21 -proc:none -nowarn -cp "$LIB/*" -d "$out/plugin" $(find "$out/src" -name '*.java')
 cp -R "$here/plugin/resources/." "$out/plugin/"
@@ -71,6 +82,10 @@ version=$(sed -n 's/^  "version": "\([^"]*\)".*/\1/p' "$here/../vscode/package.j
 [ -n "$version" ] || { echo "build.sh: no version in vscode/package.json" >&2; exit 1; }
 sed -i.bak "s|<version>[^<]*</version>|<version>$version</version>|" "$out/plugin/META-INF/plugin.xml" && rm "$out/plugin/META-INF/plugin.xml.bak"
 (cd "$out/plugin" && zip -qr "$out/dist/antitheft/lib/antitheft-plugin.jar" .)
+# the version marker antitheft-cli reads (`editors --check`) travels inside the plugin folder, so a copy the IDE put
+# there from JetBrains Marketplace (same root folder, `antitheft`) still says its version; antitheft writes the same
+# file when it installs its own copy
+printf '%s\n' "$version" > "$out/dist/antitheft/.antitheft-version"
 (cd "$out/dist" && rm -f "$out/antitheft.zip" && zip -qr "$out/antitheft.zip" antitheft)
 if [ "$dev" = true ]; then
   # the test stealer plugin (test/run.mjs), built here so a test machine needs no build tools
@@ -79,4 +94,4 @@ if [ "$dev" = true ]; then
   cp -R "$here/test/stealer/META-INF" "$out/stealer/"
   (cd "$out/stealer" && zip -qr "$out/test-stealer.jar" .)
 fi
-echo "built $out/antitheft.zip (dev: $dev)"
+echo "built $out/antitheft.zip (dev: $dev, store: $([ "$mode" = store ] && echo true || echo false))"

@@ -134,7 +134,8 @@ if (has(/^label "Guard/i)) failures.push("the guard's own health is listed as ac
 if (!has(/^label "●&nbsp;Plugin working"/) || !has(/^label "●&nbsp;Antitheft installed"/)) failures.push("the status does not say the plugin works and antitheft is installed");
 if (!has(/^button "Mark reviewed"/)) failures.push("an alert cannot be marked reviewed");
 if (!has(/^button "Clear"/)) failures.push("the activity cannot be cleared");
-if (!has(/^label "●&nbsp;Blocked"/)) failures.push("the severity is not the app's dot and word");
+// the word alone, or with the time after it in the same label (an alert row's meta line)
+if (!has(/^label "●&nbsp;Blocked("|&nbsp;)/)) failures.push("the severity is not the app's dot and word");
 if (!has(/^label "plugins? watched"/) || !has(/^label "vaults? locked"/)) failures.push("the figures are missing");
 if (!has(/^label "\d+ alerts? needs? you"/)) failures.push("the standing does not show the alerts");
 // one stealer trying many routes to one vault is one card, with a count

@@ -126,15 +126,21 @@ final class Model {
 
     /** The app's actor line: the first launcher above the actor that is not a shell, init or a pass-through, then the actor. */
     static String actorLine(JsonArray chain, String actor) {
+        JsonObject p = launcherOf(chain, actor);
+        return p == null ? actor : ("terminal".equals(str(p, "role")) ? "Terminal" : nameOf(p)) + " › " + actor;
+    }
+
+    /** The launcher `actorLine` names: the first process above the actor that is not a shell, init or a pass-through. */
+    static JsonObject launcherOf(JsonArray chain, String actor) {
         if (chain != null) for (JsonElement e : chain) {
             if (!e.isJsonObject()) continue;
             JsonObject p = e.getAsJsonObject();
             String name = nameOf(p), role = str(p, "role");
             if ("shell".equals(role) || "init".equals(role) || name.equals(actor) || PASSTHROUGH.contains(name.toLowerCase())) continue;
             if (name.matches("(?i)(ba|da|z|fi|k|tc|c)?sh")) continue;
-            return ("terminal".equals(role) ? "Terminal" : name) + " › " + actor;
+            return p;
         }
-        return actor;
+        return null;
     }
 
     private static String humanize(String t) {
@@ -228,6 +234,15 @@ final class Model {
         String kind = String.valueOf(str(a, "kind"));
         long alertId = a.get("id").getAsLong();
         String title0 = actor != null ? str(actor, "title_id") : null;
+        // The icon is asked for the actor when the corpus knows it (or a Windows program, which always has one), else
+        // for its launcher, as the app does: `rm` has no icon, the person knows it by "Claude Code".
+        if (who == null && title0 == null && (image == null || !image.matches("(?i)^[a-z]:[\\\\/].*"))) {
+            JsonObject launcher = launcherOf(d.has("actor_chain") && d.get("actor_chain").isJsonArray() ? d.getAsJsonArray("actor_chain") : null, program);
+            if (launcher != null && str(launcher, "image_path") != null) {
+                image = str(launcher, "image_path");
+                title0 = str(launcher, "title_id");
+            }
+        }
         if (!"storage_access".equals(kind)) {
             String[] o = otherTitle(kind, d, program, paused);
             Tone tone = "warning".equals(o[2]) ? Tone.WARNING : Tone.CRITICAL;
@@ -337,9 +352,13 @@ final class Model {
         Map<String, String> names = new java.util.HashMap<>();
         if (arr != null) for (JsonElement e : arr) names.put(str(e.getAsJsonObject(), "id"), str(e.getAsJsonObject(), "name"));
         List<Vault> all = new ArrayList<>();
+        // a browser's week already counts its extensions' opens (antitheft's `opens_of`): a row inside another listed
+        // row is left out of the totals, or MetaMask's refusals count once for MetaMask and once for its browser
+        java.util.Set<String> nested = new java.util.HashSet<>();
         if (arr != null) for (JsonElement e : arr) {
             JsonObject o = e.getAsJsonObject();
             String name = str(o, "name"), vendor = str(o, "vendor"), parent = str(o, "parent"), kind = str(o, "kind");
+            if (parent != null && names.containsKey(parent)) nested.add(str(o, "id"));
             String where = parent != null ? names.getOrDefault(parent, parent) : vendor != null && !vendor.isEmpty() && !vendor.equals(name) ? vendor : "";
             JsonObject week = o.has("week") && o.get("week").isJsonObject() ? o.getAsJsonObject("week") : null;
             all.add(new Vault(str(o, "id"), name == null ? "" : name, where, KIND_ORDER.contains(kind) ? kind : "other", str(o, "category"), String.valueOf(str(o, "status")),
@@ -357,7 +376,8 @@ final class Model {
         int locked = (int) all.stream().filter(Vault::isLocked).count();
         boolean paused = answer != null && answer.has("paused") && !answer.get("paused").isJsonNull() && answer.get("paused").getAsBoolean();
         return new Vaults(groups, all.size(), locked, all.size() - locked, (int) all.stream().filter(v -> "pending".equals(v.status())).count(),
-            all.stream().mapToLong(Vault::allowed).sum(), all.stream().mapToLong(Vault::refused).sum(), paused);
+            all.stream().filter(v -> !nested.contains(v.id())).mapToLong(Vault::allowed).sum(),
+            all.stream().filter(v -> !nested.contains(v.id())).mapToLong(Vault::refused).sum(), paused);
     }
 
     /** 1234 -> "1.2k", 12 -> "12". */
