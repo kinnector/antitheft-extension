@@ -65,6 +65,11 @@ cp -R "$here/plugin/src/." "$out/src/"
 sed -i.bak "s/static final boolean ENABLED = false;/static final boolean ENABLED = $dev;/" "$out/src/pro/antitheft/ide/Dev.java" && rm "$out/src/pro/antitheft/ide/Dev.java.bak"
 "$JDK/bin/javac" --release 21 -proc:none -nowarn -cp "$LIB/*" -d "$out/plugin" $(find "$out/src" -name '*.java')
 cp -R "$here/plugin/resources/." "$out/plugin/"
+# one version for both editors: the plugin takes vscode/package.json's (package.sh writes the same into the
+# editors package's manifest), so it never trails behind as a hand-edited <version> did
+version=$(sed -n 's/^  "version": "\([^"]*\)".*/\1/p' "$here/../vscode/package.json" | head -n1)
+[ -n "$version" ] || { echo "build.sh: no version in vscode/package.json" >&2; exit 1; }
+sed -i.bak "s|<version>[^<]*</version>|<version>$version</version>|" "$out/plugin/META-INF/plugin.xml" && rm "$out/plugin/META-INF/plugin.xml.bak"
 (cd "$out/plugin" && zip -qr "$out/dist/antitheft/lib/antitheft-plugin.jar" .)
 (cd "$out/dist" && rm -f "$out/antitheft.zip" && zip -qr "$out/antitheft.zip" antitheft)
 if [ "$dev" = true ]; then
