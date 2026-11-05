@@ -42,12 +42,31 @@ final class Model {
         String sev() {
             if (severity != null) return severity;
             if (label.equals("BLOCKED") || label.equals("STOPPED")) return "blocked";
-            if (label.equals("WOULD BE BLOCKED") || label.equals("HELD")) return "warning";
+            if (label.equals("WOULD BE BLOCKED") || label.equals("WOULD BE STOPPED") || label.equals("HELD")) return "warning";
             return tone == Tone.CRITICAL ? "critical" : tone == Tone.WARNING ? "warning" : null;
         }
     }
 
-    static final Map<String, String> SEVERITY_LABEL = Map.of("critical", "Critical", "warning", "Warning", "blocked", "Blocked");
+    /**
+     * What antitheft does to a program that reaches for a vault, in the words of this computer (the VS Code side's
+     * `words.ts`). Only Linux refuses the read before the file opens: there a read is blocked, refused or denied and a
+     * vault locked. On Windows and macOS antitheft stops the program, and nothing there says blocked, refused, denied
+     * or locked. The guard's own refusal of a read inside the IDE is a real refusal on every system and keeps its words.
+     */
+    record Words(boolean locks, String blocked, String wouldBe, String severity, String label, String wouldLabel, String blocks,
+                 String locked, String denied) {
+        static Words of(String osName) {
+            return osName != null && osName.toLowerCase(java.util.Locale.ROOT).startsWith("linux")
+                ? new Words(true, "blocked", "would be blocked", "Blocked", "BLOCKED", "WOULD BE BLOCKED", "blocks", "locked", "denied")
+                : new Words(false, "stopped", "would be stopped", "Stopped", "STOPPED", "WOULD BE STOPPED", "stops", "protected", "stopped");
+        }
+    }
+
+    /** The IDE runs on the computer whose antitheft it talks to: its words. */
+    static final Words WORDS = Words.of(System.getProperty("os.name"));
+
+    /** The app's severities; the value "blocked" stays on every system, only its word changes. */
+    static final Map<String, String> SEVERITY_LABEL = Map.of("critical", "Critical", "warning", "Warning", "blocked", WORDS.severity());
 
     private static final Map<String, String> CATEGORY_WORDS = Map.ofEntries(
         Map.entry("passwords", "saved passwords"), Map.entry("cookies", "cookies"), Map.entry("wallet", "wallet"),
@@ -155,7 +174,7 @@ final class Model {
         java.util.function.Function<String, String> text = k -> str(d, k) == null ? "" : str(d, k);
         java.util.function.Function<String, String> file = k -> text.apply(k).isEmpty() ? "" : basename(text.apply(k));
         java.util.function.BiFunction<String, Boolean, String[]> tried = (phrase, blocked) -> new String[] {
-            actor + " tried to " + phrase + " - " + (blocked ? (paused ? "would be blocked" : "blocked") : "allowed"), "", blocked && !paused ? "blocked" : "warning" };
+            actor + " tried to " + phrase + " - " + (blocked ? (paused ? WORDS.wouldBe() : WORDS.blocked()) : "allowed"), "", blocked && !paused ? "blocked" : "warning" };
         switch (kind) {
             case "persistence_location_changed": {
                 String change = text.apply("change"), f = file.apply("path");
@@ -265,16 +284,16 @@ final class Model {
         if (!"storage_access".equals(kind)) {
             String[] o = otherTitle(kind, d, program, paused);
             Tone tone = "warning".equals(o[2]) ? Tone.WARNING : Tone.CRITICAL;
-            String label = "blocked".equals(o[2]) ? "BLOCKED" : paused ? "WOULD BE BLOCKED" : o[2].toUpperCase();
+            String label = "blocked".equals(o[2]) ? WORDS.label() : paused ? WORDS.wouldLabel() : o[2].toUpperCase();
             return new Item("alert-" + alertId, a.get("last_seen_unix").getAsLong(), tone, label, o[0], "", id, who, null, image, title0, chain, alertId, !reviewed, o[2], o[1], line);
         }
         String response = str(d, "access_response");
         String verdict = str(d, "verdict");
-        String label = "BLOCKED";
+        String label = WORDS.label();
         Tone tone = Tone.CRITICAL;
         String severity = "blocked";
         if (paused) {
-            label = "WOULD BE BLOCKED";
+            label = WORDS.wouldLabel();
             tone = Tone.WARNING;
             severity = "warning";
         } else if ("ask".equalsIgnoreCase(response)) {

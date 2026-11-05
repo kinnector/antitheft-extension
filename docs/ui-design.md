@@ -30,6 +30,16 @@ keeps the credit):
 - The paused mark is the "a." with a SOLID amber dot (light and dark files), never a hollow ring.
 - No progress bar on the vaults.
 
+## Words by platform
+
+Only Linux refuses a read before the file opens. On Windows and macOS antitheft stops the program that reaches for a
+vault, so nothing there says a read was blocked, refused or denied, or that a vault is locked: "Stopped" for the
+severity, "stopped" in titles and figures, "vaults protected", "Other programs that reach for your N vaults are
+stopped". One place decides: `vscode/src/words.ts` (`stopWords(platform)`, the platform is the editor's own) and
+`Model.Words` in the JetBrains plugin. The guard's own refusal of a read inside the editor is a real refusal on every
+system and keeps its words. Store descriptions and READMEs are true on all three ("kept for their own apps: other
+programs are stopped, and on Linux refused before the file opens"). The examples below are Linux's.
+
 ## No licence is never only in small print
 
 Paused by the licence: "Watching only / No licence on this computer", the chip "No licence, nothing blocked", one

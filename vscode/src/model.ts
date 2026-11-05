@@ -4,6 +4,7 @@
 // what happened. No detection internals (how something was found, scores, rules).
 
 import { programOf } from "./commandLine";
+import { stopWords, type StopWords } from "./words";
 
 export interface VaultName {
   id: string;
@@ -66,15 +67,15 @@ export interface ExtInfo {
 }
 
 export type Tone = "critical" | "warning" | "info" | "quiet";
-/** The app's three severities (`ui/src/lib/alertHistory.ts`): Critical, Warning, Blocked (a block is the good outcome). */
+/** The app's three severities (`ui/src/lib/alertHistory.ts`): Critical, Warning, Blocked (a block is the good outcome;
+ *  "Stopped" on Windows and macOS, `words.ts`). The value stays "blocked" everywhere; only the word changes. */
 export type Severity = "critical" | "warning" | "blocked";
-export const SEVERITY_LABEL: Record<Severity, string> = { critical: "Critical", warning: "Warning", blocked: "Blocked" };
 
 export interface FeedItem {
   key: string;
   at: number;
   tone: Tone;
-  /** BLOCKED, STOPPED, HELD, WOULD BE BLOCKED, STARTED, WROTE */
+  /** BLOCKED, STOPPED, HELD, WOULD BE BLOCKED, WOULD BE STOPPED, STARTED, WROTE */
   label: string;
   title: string;
   detail: string;
@@ -173,11 +174,11 @@ const SIGNAL_VERBS: Record<number, string> = { 2: "interrupt", 9: "kill", 15: "t
 const humanize = (t: string) => t.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 /** An alert's sentence for the kinds that are not a vault read, the app's words (`alertTitles.ts` `headline`). */
-function otherTitle(a: AlertEntry, actor: string): { title: string; target: string; severity: Severity } {
+function otherTitle(a: AlertEntry, actor: string, w: StopWords): { title: string; target: string; severity: Severity } {
   const d = a.data as Record<string, unknown>;
   const text = (k: string) => (typeof d[k] === "string" ? (d[k] as string) : "");
   const file = (k: string) => (text(k) ? basename(text(k)) : "");
-  const result = (blocked: boolean) => (blocked ? (a.paused ? "would be blocked" : "blocked") : "allowed");
+  const result = (blocked: boolean) => (blocked ? (a.paused ? w.wouldBe : w.blocked) : "allowed");
   const tried = (phrase: string, blocked: boolean, target = "") => ({ title: `${actor} tried to ${phrase} - ${result(blocked)}`, target, severity: (blocked && !a.paused ? "blocked" : "warning") as Severity });
   switch (a.kind) {
     case "persistence_location_changed": {
@@ -252,8 +253,9 @@ function otherTitle(a: AlertEntry, actor: string): { title: string; target: stri
   }
 }
 
-/** One alert of antitheft's, read for the editor. */
-export function alertItem(a: AlertEntry, exts: Map<string, ExtInfo>, editor: string): FeedItem | null {
+/** One alert of antitheft's, read for the editor, in the words of `platform` (`words.ts`). */
+export function alertItem(a: AlertEntry, exts: Map<string, ExtInfo>, editor: string, platform: string | null | undefined = process.platform): FeedItem | null {
+  const w = stopWords(platform);
   const d = a.data ?? {};
   // the actor, as each kind records it
   const writer = (d.writer ?? d.actor_process ?? null) as ProcessSnapshot | null;
@@ -283,22 +285,22 @@ export function alertItem(a: AlertEntry, exts: Map<string, ExtInfo>, editor: str
     actorLine: line,
   };
   if (a.kind !== "storage_access") {
-    const o = otherTitle(a, program);
+    const o = otherTitle(a, program, w);
     const tone: Tone = o.severity === "critical" ? "critical" : o.severity === "blocked" ? "critical" : "warning";
-    const label = o.severity === "blocked" ? "BLOCKED" : a.paused ? "WOULD BE BLOCKED" : o.severity === "critical" ? "CRITICAL" : "WARNING";
+    const label = o.severity === "blocked" ? w.label : a.paused ? w.wouldLabel : o.severity === "critical" ? "CRITICAL" : "WARNING";
     return { ...base, tone, label, severity: o.severity, title: o.title, target: o.target ? basename(o.target) : "", detail: "", needsYou: !a.reviewed };
   }
-  let label = "BLOCKED";
+  let label = w.label;
   let tone: Tone = "critical";
   let severity: Severity = "blocked";
   let result = "antitheft stopped it.";
   const response = (d.access_response ?? "").toLowerCase();
   const verdict = (d.verdict ?? "").toLowerCase();
   if (a.paused) {
-    label = "WOULD BE BLOCKED";
+    label = w.wouldLabel;
     tone = "warning";
     severity = "warning";
-    result = "Protection was paused, so nothing was blocked.";
+    result = `Protection was paused, so nothing was ${w.blocked}.`;
   } else if (response === "ask") {
     label = "HELD";
     tone = "warning";
@@ -306,7 +308,7 @@ export function alertItem(a: AlertEntry, exts: Map<string, ExtInfo>, editor: str
     result = "antitheft is holding it until you answer in the app.";
   } else if (response === "kill" || verdict.startsWith("denied")) {
     label = "STOPPED";
-    result = response === "kill" ? "antitheft stopped the program when it reached for it." : "antitheft refused it before anything was read.";
+    result = response === "kill" || !w.locks ? "antitheft stopped the program when it reached for it." : "antitheft refused it before anything was read.";
   } else if (verdict === "allowed") {
     label = "ALLOWED";
     tone = "info";
@@ -369,7 +371,7 @@ export function eventItem(e: IdeEvent, exts: Map<string, ExtInfo>): FeedItem | n
 }
 
 /** Everything, newest first. The same extension starting the same program again is one row with a count. */
-export function feed(events: IdeEvent[], alerts: AlertEntry[], exts: Map<string, ExtInfo>, editor: string): FeedItem[] {
+export function feed(events: IdeEvent[], alerts: AlertEntry[], exts: Map<string, ExtInfo>, editor: string, platform: string | null | undefined = process.platform): FeedItem[] {
   const items: FeedItem[] = [];
   const launches = new Map<string, FeedItem>();
   for (const e of events) {
@@ -389,7 +391,7 @@ export function feed(events: IdeEvent[], alerts: AlertEntry[], exts: Map<string,
     items.push(i);
   }
   for (const a of alerts) {
-    const i = alertItem(a, exts, editor);
+    const i = alertItem(a, exts, editor, platform);
     if (i) items.push(i);
   }
   return items.sort((x, y) => y.at - x.at || x.key.localeCompare(y.key));

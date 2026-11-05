@@ -255,7 +255,10 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
         private Look look() {
             int needs = (int) s.items.stream().filter(Model.Item::needsYou).count();
             Model.Vaults v = s.vaults;
-            String guarded = v != null && v.locked() > 0 ? "Only their own apps can open your " + Model.plural(v.locked(), "vault") : "Plugins can't reach your vaults";
+            // Linux refuses every other program; Windows and macOS stop the one that reaches for a vault
+            String guarded = v != null && v.locked() > 0
+                ? (Model.WORDS.locks() ? "Only their own apps can open your " + Model.plural(v.locked(), "vault") : "Other programs that reach for your " + Model.plural(v.locked(), "vault") + " are stopped")
+                : "Plugins can't reach your vaults";
             Color muted = UIUtil.getContextHelpForeground();
             return switch (s.standing) {
                 case CHECKING -> new Look(OFFLINE, "Checking", "Looking for antitheft on this computer", muted, null);
@@ -266,7 +269,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 case UPDATE_PLUGIN -> new Look(OFFLINE, "Almost there", "One step left: update this plugin", muted, null);
                 case PAUSED -> "license".equals(s.pausedBy)
                     ? new Look(PAUSED, "Watching only", "No licence on this computer", WARN, "Get a licence")
-                    : new Look(PAUSED, "Paused", "Nothing is blocked until you resume", WARN, "Resume in antitheft");
+                    : new Look(PAUSED, "Paused", "Nothing is " + Model.WORDS.blocked() + " until you resume", WARN, "Resume in antitheft");
                 case PROTECTED -> needs > 0
                     ? new Look(ALERT, needs == 1 ? "1 alert needs you" : needs + " alerts need you", guarded, BAD, null)
                     : new Look(PROTECTED, "Protected", guarded, OK, null);
@@ -296,10 +299,10 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                 : chip("Plugin working", OK, "A plugin's own reads of your vaults are refused."));
             chips.add(Box.createHorizontalStrut(JBUI.scale(16)));
             chips.add(switch (s.standing) {
-                case PROTECTED -> chip("Antitheft installed", OK, s.systemLevel ? "Programs a plugin starts are stopped too." : "This computer can't block at the system level.");
+                case PROTECTED -> chip("Antitheft installed", OK, s.systemLevel ? "Programs a plugin starts are stopped too." : (Model.WORDS.locks() ? "This computer can't block at the system level." : "This computer can't stop programs at the system level."));
                 case PAUSED -> "license".equals(s.pausedBy)
-                    ? chip("No licence, nothing blocked", WARN, "antitheft records every read of your vaults and blocks none until this computer has a licence.")
-                    : chip("Antitheft paused", WARN, "Nothing is blocked until you resume.");
+                    ? chip("No licence, nothing " + Model.WORDS.blocked(), WARN, "antitheft records every read of your vaults and " + Model.WORDS.blocks() + " none until this computer has a licence.")
+                    : chip("Antitheft paused", WARN, "Nothing is " + Model.WORDS.blocked() + " until you resume.");
                 case NO_ACCESS -> chip("Antitheft installed", UIUtil.getContextHelpForeground(), "Installed; continue in the antitheft app.");
                 case NOT_RUNNING -> chip("Antitheft not running", WARN, "antitheft is installed, but its service is stopped.");
                 case UPDATE_ANTITHEFT -> chip("Antitheft out of date", UIUtil.getContextHelpForeground(), "This plugin needs a newer antitheft.");
@@ -316,7 +319,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             boolean noLicence = s.standing == AntitheftService.Standing.PAUSED && "license".equals(s.pausedBy);
             if (noLicence) {
                 text.add(Box.createVerticalStrut(JBUI.scale(8)));
-                text.add(left(wrap("antitheft sees every read of your vaults but blocks none of them until this computer has a licence.")));
+                text.add(left(wrap("antitheft sees every read of your vaults but " + Model.WORDS.blocks() + " none of them until this computer has a licence.")));
             }
             if (l.action() != null) {
                 text.add(Box.createVerticalStrut(JBUI.scale(8)));
@@ -358,7 +361,8 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             return out;
         }
 
-        /** Three figures: vaults locked, plugins watched, reads denied this week (or blocked here, before a vault list). */
+        /** Three figures: vaults locked, plugins watched, reads denied this week (or blocked here, before a vault list);
+         *  "protected" and "stopped" on Windows and macOS (`Model.Words`). */
         private JComponent stats() {
             Model.Vaults v = s.vaults;
             boolean paused = s.standing != AntitheftService.Standing.PROTECTED;
@@ -366,11 +370,11 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             long blockedHere = s.items.stream().filter(i -> i.label().equals("BLOCKED") || i.label().equals("STOPPED")).count();
             JPanel row = new JPanel(new GridLayout(1, 3, JBUI.scale(6), 0));
             row.setOpaque(false);
-            if (v != null) row.add(stat(String.valueOf(v.locked()), paused ? (v.locked() == 1 ? "vault watched" : "vaults watched") : v.locked() == 1 ? "vault locked" : "vaults locked", v.locked() > 0 && !paused ? OK : null, 1));
+            if (v != null) row.add(stat(String.valueOf(v.locked()), paused ? (v.locked() == 1 ? "vault watched" : "vaults watched") : (v.locked() == 1 ? "vault " : "vaults ") + Model.WORDS.locked(), v.locked() > 0 && !paused ? OK : null, 1));
             row.add(stat(String.valueOf(plugins), plugins == 1 ? "plugin watched" : "plugins watched", null, 3));
             // the whole computer's, not this IDE's (every program's refused opens of the vaults): said so in the label
-            if (v != null) row.add(stat(Model.compact(v.refused()), paused ? "would be denied on this computer, 7d" : "denied on this computer, 7d", v.refused() > 0 ? BAD : null, -1));
-            else row.add(stat(String.valueOf(blockedHere), "blocked here", blockedHere > 0 ? BAD : null, 0));
+            if (v != null) row.add(stat(Model.compact(v.refused()), (paused ? "would be " + Model.WORDS.denied() : Model.WORDS.denied()) + " on this computer, 7d", v.refused() > 0 ? BAD : null, -1));
+            else row.add(stat(String.valueOf(blockedHere), Model.WORDS.blocked() + " here", blockedHere > 0 ? BAD : null, 0));
             row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
             return left(row);
         }
@@ -406,21 +410,22 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             p.setBorder(JBUI.Borders.empty(10, 12));
             if (v == null || v.total() == 0) {
                 p.add(head("Vaults", v == null ? "Reading the vaults on this computer" : "No vaults found yet", null));
-                if (v != null) p.add(left(muted("When a wallet, password manager or key appears, antitheft locks it to its own app")));
+                if (v != null) p.add(left(muted("When a wallet, password manager or key appears, antitheft " + (Model.WORDS.locks() ? "locks it to" : "keeps it for") + " its own app")));
                 return p;
             }
             boolean paused = s.standing != AntitheftService.Standing.PROTECTED;
-            // while nothing is blocked a vault is watched, never "locked"
-            p.add(head("Vaults", paused ? v.total() + " found, watched only: nothing is blocked" : v.locked() + " of " + v.total() + " locked to their own app",
+            // while nothing is blocked a vault is watched, never "locked" (and never "locked" on Windows or macOS)
+            p.add(head("Vaults", paused ? v.total() + " found, watched only: nothing is " + Model.WORDS.blocked()
+                    : v.locked() + " of " + v.total() + (Model.WORDS.locks() ? " locked to" : " protected for") + " their own app",
                 link("Open in antitheft", () -> s.openApp("/vaults"))));
-            String what = paused ? "" : "No other program can open them, plugins included." + (v.observed() == 1
+            String what = paused ? "" : (Model.WORDS.locks() ? "No other program can open them, plugins included." : "Any other program that reaches for them is stopped, plugins included.") + (v.observed() == 1
                 ? " The other one is observed: antitheft records every program that opens it."
                 : v.observed() > 1 ? " The other " + v.observed() + " are observed: antitheft records every program that opens them." : "");
             if (!what.isEmpty()) p.add(left(muted(what)));
             // the week in figures, the value first as the app's figures read
             String deniedTone = v.refused() > 0 ? hex(BAD) : null;
             String figures = "<b>" + Model.compact(v.allowed()) + "</b> allowed reads&nbsp;&nbsp;·&nbsp;&nbsp;"
-                + (deniedTone != null ? "<b style='color:" + deniedTone + "'>" : "<b>") + Model.compact(v.refused()) + "</b> " + (paused ? "would be denied" : "denied")
+                + (deniedTone != null ? "<b style='color:" + deniedTone + "'>" : "<b>") + Model.compact(v.refused()) + "</b> " + (paused ? "would be " + Model.WORDS.denied() : Model.WORDS.denied())
                 + "&nbsp;&nbsp;·&nbsp;&nbsp;7 days" + (v.pending() > 0 ? "&nbsp;&nbsp;·&nbsp;&nbsp;<b style='color:" + hex(WARN) + "'>" + v.pending() + "</b> need your approval" : "");
             JBLabel fig = new JBLabel("<html>" + figures + "</html>", UIUtil.ComponentStyle.SMALL);
             fig.setBorder(JBUI.Borders.emptyTop(6));
@@ -445,7 +450,7 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
             JPanel text = column();
             text.add(left(new JBLabel(x.name())));
             String sub = x.where();
-            String week = x.refused() > 0 ? Model.compact(x.allowed()) + " reads · " + Model.compact(x.refused()) + " denied" : x.allowed() > 0 ? Model.compact(x.allowed()) + " reads this week" : "";
+            String week = x.refused() > 0 ? Model.compact(x.allowed()) + " reads · " + Model.compact(x.refused()) + " " + Model.WORDS.denied() : x.allowed() > 0 ? Model.compact(x.allowed()) + " reads this week" : "";
             if (!week.isEmpty()) sub = sub.isEmpty() ? week : sub + " · " + week;
             if (!sub.isEmpty()) text.add(left(new JBLabel(sub, UIUtil.ComponentStyle.SMALL, UIUtil.FontColor.BRIGHTER)));
             row.add(text, BorderLayout.CENTER);
@@ -509,7 +514,9 @@ public final class AntitheftToolWindowFactory implements ToolWindowFactory, Dumb
                     what.setFont(JBFont.label().asBold().biggerOn(2));
                     p.add(left(what));
                     p.add(Box.createVerticalStrut(JBUI.scale(8)));
-                    JComponent line = wrap("Your wallets and passwords open only in their own apps. Anything else that tries, a plugin included, is stopped and named.");
+                    JComponent line = wrap(Model.WORDS.locks()
+                        ? "Your wallets and passwords open only in their own apps. Anything else that tries, a plugin included, is stopped and named."
+                        : "Your wallets and passwords are kept for their own apps. Anything else that reaches for them, a plugin included, is stopped and named.");
                     line.setForeground(UIUtil.getContextHelpForeground());
                     p.add(left(line));
                     p.add(Box.createVerticalStrut(JBUI.scale(4)));

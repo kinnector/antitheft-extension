@@ -2,7 +2,7 @@
 // descriptions come from other extensions' manifests and are untrusted. Colours are the editor's theme;
 // antitheft's own marks and the apps' real icons are the graphics.
 
-export {};
+import { stopWords } from "../words";
 
 interface VsCodeApi {
   postMessage(m: unknown): void;
@@ -104,6 +104,8 @@ interface State {
   extensions: { attention: ExtRow[]; quiet: ExtRow[] };
   vaults: VaultsView | null;
   editor: string;
+  /** antitheft's platform: Linux refuses a read before the file opens, Windows and macOS stop the program (`words.ts`). */
+  platform?: string;
   media: Record<string, string>;
   now: number;
 }
@@ -194,21 +196,22 @@ function word(label: string): string {
 }
 
 type Sev = "critical" | "warning" | "blocked";
-const SEV_LABEL: Record<Sev, string> = { critical: "Critical", warning: "Warning", blocked: "Blocked" };
 
-/** The app's severity for an item: Critical, Warning, or Blocked (a block is the good outcome). */
+/** The app's severity for an item: Critical, Warning, or Blocked (a block is the good outcome; Stopped on Windows and
+ *  macOS). */
 function sevOf(i: Item): Sev | null {
   if (i.severity) return i.severity;
   if (i.label === "BLOCKED" || i.label === "STOPPED") return "blocked";
-  if (i.label === "WOULD BE BLOCKED" || i.label === "HELD") return "warning";
+  if (i.label === "WOULD BE BLOCKED" || i.label === "WOULD BE STOPPED" || i.label === "HELD") return "warning";
   return i.tone === "critical" ? "critical" : i.tone === "warning" ? "warning" : null;
 }
 
 /** The app's severity label: a dot and the word. Activity that is no alert shows its own word, muted. */
-function severityLabel(i: Item): HTMLElement {
+function severityLabel(i: Item, s: State): HTMLElement {
   const sev = sevOf(i);
+  const label = sev === "blocked" ? stopWords(s.platform).severity : sev === "critical" ? "Critical" : "Warning";
   return sev
-    ? h("span", { class: `sev sev--${sev}` }, h("span", { class: `sev-dot sev-dot--${sev}` }), SEV_LABEL[sev])
+    ? h("span", { class: `sev sev--${sev}` }, h("span", { class: `sev-dot sev-dot--${sev}` }), label)
     : h("span", { class: "sev sev--quiet" }, h("span", { class: "sev-dot" }), word(i.label));
 }
 
@@ -247,6 +250,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 function look(s: State): Look {
   const p = s.protection;
   const m = s.media;
+  const w = stopWords(s.platform);
   if (p.standing === "checking") return { icon: m.offline, title: "Checking", sub: "Looking for antitheft on this computer", tone: "muted" };
   if (p.standing === "not-installed") return { icon: m.offline, title: "Almost there", sub: "One step left: install antitheft", tone: "muted" };
   if (p.standing === "no-access") return { icon: m.offline, title: "Almost there", sub: "One step left: continue in antitheft", tone: "muted" };
@@ -261,15 +265,16 @@ function look(s: State): Look {
           title: "Watching only",
           sub: "No licence on this computer",
           tone: "warn",
-          notice: "antitheft sees every read of your vaults but blocks none of them until this computer has a licence.",
+          notice: `antitheft sees every read of your vaults but ${w.blocks} none of them until this computer has a licence.`,
           action: "Get a licence",
           primary: true,
         }
-      : { icon: m.paused, title: "Paused", sub: "Nothing is blocked until you resume", tone: "warn", action: "Resume in antitheft" };
+      : { icon: m.paused, title: "Paused", sub: `Nothing is ${w.blocked} until you resume`, tone: "warn", action: "Resume in antitheft" };
   }
   const needs = s.items.filter((i) => i.needsYou).length;
   const v = s.vaults;
-  const sub = v && v.locked ? `Only their own apps can open your ${plural(v.locked, "vault")}` : "Extensions can't reach your vaults";
+  // Linux refuses every other program; Windows and macOS stop the one that reaches for a vault
+  const sub = v && v.locked ? (w.locks ? `Only their own apps can open your ${plural(v.locked, "vault")}` : `Other programs that reach for your ${plural(v.locked, "vault")} are stopped`) : "Extensions can't reach your vaults";
   if (needs) return { icon: m.alert, title: needs === 1 ? "1 alert needs you" : `${needs} alerts need you`, sub, tone: "bad" };
   return { icon: m.protected, title: "Protected", sub, tone: "ok" };
 }
@@ -287,6 +292,7 @@ function mark(s: State, icon: string): HTMLElement[] {
 function coverage(s: State): HTMLElement {
   const p = s.protection.standing;
   const partial = Object.values(s.hooks ?? {}).some((v) => v !== "ok");
+  const w = stopWords(s.platform);
   const ext: [string, string, string] = !connected(s)
     ? ["Extension waiting", "muted", "It starts guarding this editor once antitheft runs."]
     : partial
@@ -294,11 +300,11 @@ function coverage(s: State): HTMLElement {
       : ["Extension working", "ok", "An extension's own reads of your vaults are refused."];
   const at: [string, string, string] =
     p === "protected"
-      ? ["Antitheft installed", "ok", s.protection.systemLevel ? "Programs an extension starts are stopped too." : "This computer can't block at the system level."]
+      ? ["Antitheft installed", "ok", s.protection.systemLevel ? "Programs an extension starts are stopped too." : w.locks ? "This computer can't block at the system level." : "This computer can't stop programs at the system level."]
       : p === "paused"
         ? s.protection.pausedBy === "license"
-          ? ["No licence, nothing blocked", "warn", "antitheft records every read of your vaults and blocks none until this computer has a licence."]
-          : ["Antitheft paused", "warn", "Nothing is blocked until you resume."]
+          ? [`No licence, nothing ${w.blocked}`, "warn", `antitheft records every read of your vaults and ${w.blocks} none until this computer has a licence.`]
+          : ["Antitheft paused", "warn", `Nothing is ${w.blocked} until you resume.`]
         : p === "not-running"
           ? ["Antitheft not running", "warn", "antitheft is installed, but its service is stopped."]
           : p === "checking"
@@ -355,18 +361,19 @@ function stats(s: State): HTMLElement | null {
   const exts = userExtensions(s);
   const blockedHere = s.items.filter((i) => i.label === "BLOCKED" || i.label === "STOPPED").length;
   const paused = s.protection.standing !== "protected";
+  const w = stopWords(s.platform);
   const tile = (value: string, label: string, tone = "", onclick?: () => void) =>
     h(onclick ? "button" : "div", { class: `stat ${tone}`, onclick }, h("span", { class: "stat-value" }, value), h("span", { class: "stat-label" }, label));
   return h(
     "div",
     { class: "stats" },
-    // while nothing is blocked a vault is watched, never "locked"
-    v ? tile(String(v.locked), paused ? (v.locked === 1 ? "vault watched" : "vaults watched") : v.locked === 1 ? "vault locked" : "vaults locked", "", () => send({ type: "screen", screen: "vaults" })) : null,
+    // while nothing is blocked a vault is watched, never "locked" (and never "locked" on Windows or macOS)
+    v ? tile(String(v.locked), paused ? (v.locked === 1 ? "vault watched" : "vaults watched") : `${v.locked === 1 ? "vault" : "vaults"} ${w.locked}`, "", () => send({ type: "screen", screen: "vaults" })) : null,
     tile(String(exts.length), exts.length === 1 ? "extension watched" : "extensions watched", "", () => send({ type: "screen", screen: "extensions" })),
     v
       ? // the whole computer's (every program's refused opens of the vaults), not this editor's: the label says so
-        tile(compact(v.refused), paused ? "would be denied on this computer, 7d" : "denied on this computer, 7d", v.refused ? "bad" : "", () => openApp("/activity"))
-      : tile(String(blockedHere), "blocked here", blockedHere ? "bad" : "", () => send({ type: "screen", screen: "alerts" })),
+        tile(compact(v.refused), `${paused ? `would be ${w.denied}` : w.denied} on this computer, 7d`, v.refused ? "bad" : "", () => openApp("/activity"))
+      : tile(String(blockedHere), `${w.blocked} here`, blockedHere ? "bad" : "", () => send({ type: "screen", screen: "alerts" })),
   );
 }
 
@@ -444,7 +451,7 @@ function sidebar(s: State): HTMLElement {
       { class: "mini", onclick: () => send({ type: "screen", screen: i.needsYou ? "alerts" : "activity" }) },
       // who did it: the extension's own icon when an extension did, else the program's (never the vault's)
       actorIcon(i.extIcon ?? i.programIcon, i.extensionName ?? i.program?.name ?? i.title),
-      h("span", { class: "mini-text" }, h("span", { class: "mini-title" }, i.title), h("span", { class: "mini-meta" }, severityLabel(i), h("span", { class: "muted when" }, when(i.at, s.now)))),
+      h("span", { class: "mini-text" }, h("span", { class: "mini-title" }, i.title), h("span", { class: "mini-meta" }, severityLabel(i, s), h("span", { class: "muted when" }, when(i.at, s.now)))),
     );
   return h(
     "div",
@@ -534,8 +541,9 @@ function notProtected(s: State, compact: boolean): HTMLElement {
 
 // ---- under the setup: what antitheft is, then a real alert ------------------------------------
 // "What is antitheft?", two short sentences and Learn more (the site, opened by the host), then the app's real alert
-// card landing once (media/alert-example.webp). Only what antitheft does (protection-claims): locked vaults, refused
-// programs; never what is only watched (SSH keys, .env, cloud CLI credentials).
+// card landing once (media/alert-example.webp). Only what antitheft does (protection-claims): vaults kept for their own
+// apps, other programs stopped (locked and refused only on Linux); never what is only watched (SSH keys, .env, cloud
+// CLI credentials).
 
 /** The alert card lands on the first draw of this view only; a redraw (a new state) shows it in place. */
 let landed = false;
@@ -551,7 +559,9 @@ function whatIs(s: State): HTMLElement {
     h(
       "p",
       { class: "what-is-line" },
-      "Your wallets and passwords open only in their own apps. Anything else that tries, an extension included, is stopped and named.",
+      stopWords(s.platform).locks
+        ? "Your wallets and passwords open only in their own apps. Anything else that tries, an extension included, is stopped and named."
+        : "Your wallets and passwords are kept for their own apps. Anything else that reaches for them, an extension included, is stopped and named.",
     ),
     h("div", { class: "what-is-more" }, button("Learn more", () => send({ type: "getAntitheft" }), "link", "external")),
     m.alertExample
@@ -625,7 +635,7 @@ function screenHead(s: State, current: Screen): HTMLElement {
     current === "alerts"
       ? ["Alerts", needs ? `${plural(needs, "alert")} from this editor, ${needs === 1 ? "it needs" : "they need"} you` : "Nothing from this editor needs you"]
       : current === "vaults"
-        ? ["Vaults", v ? (s.protection.standing === "protected" ? `${v.locked} of ${v.total} locked to their own app` : `${v.total} found, watched only: nothing is blocked`) : "Reading the vaults on this computer"]
+        ? ["Vaults", v ? (s.protection.standing === "protected" ? `${v.locked} of ${v.total} ${stopWords(s.platform).locks ? "locked to" : "protected for"} their own app` : `${v.total} found, watched only: nothing is ${stopWords(s.platform).blocked}`) : "Reading the vaults on this computer"]
         : current === "activity"
           ? ["Activity", `${plural(s.items.length, "thing")} extensions did in this editor`]
           : ["Extensions", `${exts.length} installed, ${attention ? `${attention} ${attention === 1 ? "needs" : "need"} your attention` : "none needs your attention"}`];
@@ -641,7 +651,8 @@ function screenHead(s: State, current: Screen): HTMLElement {
 function vaultsScreen(s: State): HTMLElement {
   const v = s.vaults;
   if (!v) return h("div", { class: "screen" }, empty(s, "Vaults are loading", "antitheft is listing the vaults on this computer"));
-  if (!v.total) return h("div", { class: "screen" }, empty(s, "No vaults found yet", "When a wallet, password manager or key appears on this computer, antitheft locks it to its own app"));
+  const w = stopWords(s.platform);
+  if (!v.total) return h("div", { class: "screen" }, empty(s, "No vaults found yet", `When a wallet, password manager or key appears on this computer, antitheft ${w.locks ? "locks it to" : "keeps it for"} its own app`));
   const paused = s.protection.standing !== "protected";
   const figure = (value: string, label: string, tone = "") => h("div", { class: `figure ${tone}` }, h("span", { class: "figure-value" }, value), h("span", { class: "figure-label muted" }, label));
   const status = (x: VaultView) => {
@@ -658,13 +669,13 @@ function vaultsScreen(s: State): HTMLElement {
       h(
         "div",
         { class: "vault-hero-text" },
-        h("div", { class: "muted" }, `No other program can open them, extensions included.${v.observed === 1 ? " The other one is observed: antitheft records every program that opens it." : v.observed ? ` The other ${v.observed} are observed: antitheft records every program that opens them.` : ""}`),
+        h("div", { class: "muted" }, `${w.locks ? "No other program can open them, extensions included." : "Any other program that reaches for them is stopped, extensions included."}${v.observed === 1 ? " The other one is observed: antitheft records every program that opens it." : v.observed ? ` The other ${v.observed} are observed: antitheft records every program that opens them.` : ""}`),
       ),
       h(
         "div",
         { class: "figures" },
         figure(compact(v.allowed), "allowed reads, 7 days"),
-        figure(compact(v.refused), paused ? "would be denied, 7 days" : "denied reads, 7 days", v.refused ? "bad" : ""),
+        figure(compact(v.refused), paused ? `would be ${w.denied}, 7 days` : `${w.denied} reads, 7 days`, v.refused ? "bad" : ""),
         v.pending ? figure(String(v.pending), v.pending === 1 ? "needs your approval" : "need your approval", "warn") : null,
       ),
     ),
@@ -682,7 +693,7 @@ function vaultsScreen(s: State): HTMLElement {
               { class: "row vault-row", onclick: () => openApp("/vaults"), title: "Open in antitheft" },
               tile(x.icon, g.kind === "wallets" ? "lock" : g.kind === "secrets" ? "file" : "shield", "small"),
               h("span", { class: "row-title" }, h("span", { class: "vault-name" }, x.name), x.where ? h("span", { class: "row-detail" }, x.where) : null),
-              h("span", { class: "muted vault-week" }, x.week.refused ? `${compact(x.week.allowed)} reads · ${compact(x.week.refused)} denied` : x.week.allowed ? `${compact(x.week.allowed)} reads` : ""),
+              h("span", { class: "muted vault-week" }, x.week.refused ? `${compact(x.week.allowed)} reads · ${compact(x.week.refused)} ${w.denied}` : x.week.allowed ? `${compact(x.week.allowed)} reads` : ""),
               status(x),
             ),
           ),
@@ -701,7 +712,7 @@ function alertRow(i: Item, s: State, withActions: boolean): HTMLElement {
   return h(
     "article",
     { class: `alert-row${open ? " clickable" : ""}${i.needsYou ? " new" : ""}`, onclick: open, title: open ? "Open in antitheft" : null },
-    h("div", { class: "alert-sev" }, severityLabel(i)),
+    h("div", { class: "alert-sev" }, severityLabel(i, s)),
     h(
       "div",
       { class: "alert-main" },
@@ -774,7 +785,7 @@ function extensionsScreen(s: State): HTMLElement {
           { class: "ext-events" },
           ...[...r.attention, ...r.started]
             .sort((a, b) => a.at - b.at)
-            .map((i) => h("div", { class: "ext-event" }, h("span", { class: "ext-event-sev" }, severityLabel(i)), h("span", { class: "row-title" }, i.title), h("span", { class: "muted when" }, when(i.at, s.now)))),
+            .map((i) => h("div", { class: "ext-event" }, h("span", { class: "ext-event-sev" }, severityLabel(i, s)), h("span", { class: "row-title" }, i.title), h("span", { class: "muted when" }, when(i.at, s.now)))),
         ),
       ),
     ),

@@ -3,6 +3,7 @@
 
 import * as vscode from "vscode";
 import type { Session } from "../session";
+import { stopWords } from "../words";
 
 export class StatusBar implements vscode.Disposable {
   private readonly item = vscode.window.createStatusBarItem("antitheft.status", vscode.StatusBarAlignment.Right, 100);
@@ -51,7 +52,7 @@ export class StatusBar implements vscode.Disposable {
         this.item.text = lead;
         this.item.tooltip =
           p.pausedBy === "license"
-            ? "No licence on this computer: antitheft records every read of your vaults and blocks none."
+            ? `No licence on this computer: antitheft records every read of your vaults and ${stopWords(process.platform).blocks} none.`
             : "Protection is paused. Resume it in the antitheft app.";
         this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
         if (n) {

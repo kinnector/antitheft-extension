@@ -45,7 +45,8 @@ const vaultSum = vaultSummary(vaultList);
 const vaults = { ...vaultSum, paused: false, groups: vaultSum.groups.map((g) => ({ ...g, vaults: g.vaults.map((v) => ({ ...v, icon: v.id === "electrum" ? null : PNG })) })) };
 
 function state(surface: "sidebar" | "panel", standing: string, overrides: Record<string, unknown> = {}) {
-  const items = feed(events, alerts, byId, "Visual Studio Code").map((i) => ({
+  const platform = typeof overrides.platform === "string" ? overrides.platform : "linux";
+  const items = feed(events, alerts, byId, "Visual Studio Code", platform).map((i) => ({
     ...i,
     extIcon: i.extensionId === "devtools-hub.solidity-snippets-pro" ? PNG : null,
     vaultIcon: i.vault ? PNG : null,
@@ -61,6 +62,7 @@ function state(surface: "sidebar" | "panel", standing: string, overrides: Record
     extensions: { attention: rows.attention.map(icon), quiet: rows.quiet.map(icon) },
     vaults,
     editor: "Visual Studio Code",
+    platform,
     media: { logo: "m/logo.svg", mark: "m/mark.svg", protected: "m/p.svg", paused: "m/pa.svg", pausedLight: "m/pal.svg", alert: "m/ad.svg", alertLight: "m/al.svg", offline: "m/o.svg", ide: "m/vscode.png", claude: "m/c.png", codex: "m/x.png", alertExample: "m/alert-example.webp" },
     now: 1200,
     ...overrides,
@@ -329,4 +331,30 @@ test("the stylesheet uses the editor's theme, not colours of its own", () => {
   const colours = css.match(/#[0-9a-fA-F]{3,6}\b/g) ?? [];
   // only fallbacks inside var(--vscode-..., #...) are allowed
   for (const c of colours) assert.ok(new RegExp(`var\\(--vscode-[a-zA-Z-]+, ${c}\\)`).test(css), `colour ${c} outside a theme fallback`);
+});
+
+test("Windows and macOS: antitheft stops the program; nothing says blocked, refused, denied or locked", () => {
+  const banned = /block|refus|denied|deny|lock/i;
+  for (const platform of ["win32", "darwin"]) {
+    const side = render("sidebar", state("sidebar", "protected", { platform }));
+    assert.equal(side.text(".hero-sub")[0], "Other programs that reach for your 2 vaults are stopped");
+    assert.deepEqual(side.text(".stat-label"), ["vaults protected", "extensions watched", "stopped on this computer, 7d"]);
+    assert.doesNotMatch(side.root.textContent ?? "", banned, platform);
+    const panel = render("panel", state("panel", "protected", { platform }));
+    assert.deepEqual(panel.text(".alert-row .sev"), ["Stopped", "Stopped", "Stopped"]);
+    assert.doesNotMatch(panel.root.textContent ?? "", banned, platform);
+    panel.click("Vaults");
+    assert.equal(panel.text(".screen-sub")[0], "2 of 4 protected for their own app");
+    assert.match(panel.text(".vault-hero-text")[0], /^Any other program that reaches for them is stopped, extensions included\./);
+    assert.doesNotMatch(panel.root.textContent ?? "", banned, platform);
+    const paused = render("panel", state("panel", "paused", { platform }));
+    assert.match(paused.text(".pause-bar")[0], /^Paused\. Nothing is stopped until you resume\./);
+    const lic = render("sidebar", state("sidebar", "paused", { platform, protection: { standing: "paused", systemLevel: true, pausedBy: "license" } }));
+    assert.match(lic.text(".hero-notice")[0], /stops none of them until this computer has a licence/);
+    assert.ok(lic.text(".cover").includes("No licence, nothing stopped"));
+    for (const r of [paused, lic]) assert.doesNotMatch(r.root.textContent ?? "", banned, platform);
+    const setup = render("sidebar", state("sidebar", "not-installed", { platform }));
+    assert.match(setup.text(".what-is-line")[0], /^Your wallets and passwords are kept for their own apps\./);
+    assert.doesNotMatch(setup.root.textContent ?? "", banned, platform);
+  }
 });

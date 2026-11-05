@@ -7,8 +7,9 @@ with the same access you have. One bad update, one poisoned package or one promp
 read your wallet, the passwords your browser saved, or the session that keeps you signed in, and send them
 away. Your editor does not stop it, and it does not tell you what did it.
 
-Antitheft does both. It works with the [Antitheft app](https://antitheft.pro), which locks your vaults on the
-computer itself, and this extension brings that protection inside the editor.
+Antitheft does both. It works with the [Antitheft app](https://antitheft.pro), which keeps your vaults for their own
+apps on the computer itself (other programs are stopped, and on Linux refused before the file opens), and
+this extension brings that protection inside the editor.
 
 ![A fake "Claude Code Assistant" extension is refused a MetaMask wallet, and the program it dropped is stopped going for Trust Wallet and Chrome's saved passwords; the Antitheft app's alert pops up over the editor](https://raw.githubusercontent.com/kinnector/antitheft-extension/main/docs/screenshots/overview.png)
 
@@ -19,21 +20,22 @@ computer itself, and this extension brings that protection inside the editor.
 - **Stops what they start.** If an extension downloads a program and runs it, Antitheft stops that program
   when it goes for your vaults.
 - **Covers AI agents and everything the editor runs.** Coding agents and assistants, the terminal, tasks,
-  MCP servers and the install scripts of the packages you add are refused your vaults the same way, and the
+  MCP servers and the install scripts of the packages you add are kept from your vaults the same way, and the
   alert shows where it came from, like "Claude Code › rm".
 - **Names who did it.** Every alert says which extension or program was behind it, and an extension can be
   disabled or uninstalled right from the alert.
 - **Shows you what is protected.** The Vaults tab lists the wallets, password managers and browsers Antitheft
-  found on your computer, and which ones only their own app can open.
+  found on your computer, and which ones are kept for their own app.
 - **Keeps an eye on every extension.** The Extensions tab shows what each installed extension did: the
   programs it started or wrote, and whether any of it touched your vaults.
 
-![Every wallet, password manager and browser on the computer, and which ones only their own app can open](https://raw.githubusercontent.com/kinnector/antitheft-extension/main/docs/screenshots/vaults.png)
+![Every wallet, password manager and browser on the computer, and which ones are kept for their own app](https://raw.githubusercontent.com/kinnector/antitheft-extension/main/docs/screenshots/vaults.png)
 
 ## Supported vaults
 
-Antitheft locks each of these to its own app: only that app can open it. An extension, an AI agent or a
-program either of them starts is refused. Names without a note are supported on Linux, macOS and Windows.
+Antitheft keeps each of these for its own app. An extension, an AI agent or a program either of them starts
+that reaches for one is stopped; on Linux the read is refused before the file opens. Names without a note are
+supported on Linux, macOS and Windows.
 
 | Vault | Apps |
 | --- | --- |
@@ -52,8 +54,8 @@ program either of them starts is refused. Names without a note are supported on 
 
 ### Developer secrets
 
-Your build tools, deploy scripts, agents and CLIs read these all day, so Antitheft does not lock them: it
-records every program that opens one, and you see who it was. The Vaults tab marks each one Observed,
+Your build tools, deploy scripts, agents and CLIs read these all day, so Antitheft does not stop anyone reading
+them: it records every program that opens one, and you see who it was. The Vaults tab marks each one Observed,
 with its reads this week, and the Antitheft app shows which program read it.
 
 | Secret | Tools |
@@ -62,7 +64,7 @@ with its reads this week, and the Antitheft app shows which program read it.
 | SSH | Private keys, `~/.ssh/config`, `known_hosts`, `authorized_keys`, ssh-agent, PuTTY, sshPilot, saved sites in FileZilla, WinSCP, MobaXterm, Cyberduck. Turn on **SSH key hardening** in the Antitheft app's settings and only SSH tools can read your keys |
 | Cloud | AWS CLI, Google Cloud CLI, Azure CLI, DigitalOcean, Cloudflare Wrangler, Vercel, Netlify, Fly.io, Heroku, Railway, Render, Firebase, Supabase |
 | Infrastructure | kubectl, Helm, Terraform, Pulumi, Vagrant, Ansible Vault, Docker and Podman registry logins |
-| Secret managers | HashiCorp Vault, Doppler, Infisical, 1Password CLI (the Bitwarden CLI is locked, see above) |
+| Secret managers | HashiCorp Vault, Doppler, Infisical, 1Password CLI (the Bitwarden CLI is protected, see above) |
 | Code hosting and CI | GitHub CLI, GitLab CLI, Git credential stores and Git Credential Manager, `.netrc`, GitLab Runner, Buildkite, CircleCI, TeamCity |
 | Package registry tokens | npm, PyPI, Cargo, RubyGems, NuGet, Maven, Gradle, Composer |
 | Databases | `.pgpass`, `.my.cnf`, pgAdmin, DBeaver, MongoDB Shell and Compass, redis-cli |
@@ -74,12 +76,12 @@ Also recorded: other email apps, backup tools (Borg, Kopia, Vorta) and game laun
 KeePass and KeePassXC databases (`.kdbx`) are not covered, because they live wherever you choose to save
 them.
 
-What Antitheft finds and locks on your computer depends on the apps you have installed. The Vaults tab
+What Antitheft finds and protects on your computer depends on the apps you have installed. The Vaults tab
 shows exactly what it is protecting on yours.
 
 ## In the editor
 
-- **Sidebar.** Your protection at a glance: whether Antitheft is running, how many vaults are locked, how
+- **Sidebar.** Your protection at a glance: whether Antitheft is running, how many vaults are protected, how
   many extensions are watched, and anything that needs you.
 - **Alerts.** What was blocked or stopped, which extension was behind it, and the program it used. Mark an
   alert reviewed, or open it in the Antitheft app for the full story.

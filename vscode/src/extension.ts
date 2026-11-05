@@ -27,7 +27,7 @@ export function activate(context: vscode.ExtensionContext): void {
     if (now - (lastNotified.get(who) ?? 0) < NOTIFY_EVERY_MS) return;
     lastNotified.set(who, now);
     const actions = i.extensionId && i.extensionId !== "unknown" ? ["Show", "Disable extension"] : ["Show"];
-    void vscode.window.showWarningMessage(`antitheft: ${i.title}. ${i.label === "BLOCKED" ? "It was blocked." : i.detail}`, ...actions).then((choice) => {
+    void vscode.window.showWarningMessage(`antitheft: ${i.title}. ${i.label === "BLOCKED" ? "It was blocked." : i.detail || (i.label === "STOPPED" ? "It was stopped." : "")}`, ...actions).then((choice) => {
       if (choice === "Show") views.open("alerts");
       else if (choice === "Disable extension" && i.extensionId) void disableExtension(i.extensionId, i.extensionName ?? i.extensionId);
     });

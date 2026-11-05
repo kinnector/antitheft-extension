@@ -203,7 +203,7 @@ export class Views implements vscode.Disposable, vscode.WebviewViewProvider {
       }),
     );
     const dismissed = new Set(this.context.globalState.get<string[]>(DISMISSED_KEY) ?? []);
-    this.items = feed(this.session.events, this.session.alerts, this.exts, vscode.env.appName).map((i) => (i.needsYou && !i.alertId && dismissed.has(i.key) ? { ...i, needsYou: false } : i));
+    this.items = feed(this.session.events, this.session.alerts, this.exts, vscode.env.appName, process.platform).map((i) => (i.needsYou && !i.alertId && dismissed.has(i.key) ? { ...i, needsYou: false } : i));
     const rows = extensionRows([...this.exts.values()].filter((e) => e.id !== this.session.ownId), this.items);
     const wanted: string[] = [];
     const icon = (key: string): string | null => {
@@ -234,6 +234,8 @@ export class Views implements vscode.Disposable, vscode.WebviewViewProvider {
       extensions: { attention: rows.attention.map(row), quiet: rows.quiet.map(row) },
       vaults,
       editor: vscode.env.appName,
+      // antitheft's own platform (the extension talks only to the antitheft of this computer): its words (`words.ts`)
+      platform: process.platform,
       now: Math.floor(Date.now() / 1000),
     };
     if (this.sidebar) void this.sidebar.webview.postMessage({ ...payload, surface: "sidebar", media: this.mediaFor(this.sidebar.webview) });

@@ -43,18 +43,43 @@ test("a refused read reads like the app: who tried to read your what, then what 
 });
 
 test("a downloaded program's alert names the extension and draws the chain editor first", () => {
-  const i = alertItem(beacon, exts, "Visual Studio Code")!;
+  const i = alertItem(beacon, exts, "Visual Studio Code", "linux")!;
   assert.equal(i.title, "A program solidity-snippets-pro started tried to read your Exodus wallet");
   assert.equal(i.label, "STOPPED");
   assert.deepEqual(i.chain, ["Visual Studio Code", "solidity-snippets-pro", "node-update"]);
-  const paused = alertItem({ ...beacon, paused: true }, exts, "Visual Studio Code")!;
+  const paused = alertItem({ ...beacon, paused: true }, exts, "Visual Studio Code", "linux")!;
   assert.equal(paused.label, "WOULD BE BLOCKED");
-  const held = alertItem({ ...beacon, data: { ...beacon.data, access_response: "ask" } }, exts, "Visual Studio Code")!;
+  const held = alertItem({ ...beacon, data: { ...beacon.data, access_response: "ask" } }, exts, "Visual Studio Code", "linux")!;
   assert.equal(held.label, "HELD");
 });
 
+test("only Linux refuses a read: on Windows and macOS an alert says the program was stopped, never blocked or refused", () => {
+  const denied = { ...beacon, extension_id: undefined, data: { ...beacon.data, access_response: undefined } } as AlertEntry;
+  const signal = { ...beacon, kind: "signal_delivery", extension_id: undefined, data: { signal: 9, blocked: true, target_image_path: "/usr/bin/keepassxc", actor_process: beacon.data.actor_process } } as unknown as AlertEntry;
+  // Linux: the kernel refused it before the file opened
+  assert.equal(alertItem(denied, exts, "Visual Studio Code", "linux")!.detail, "antitheft refused it before anything was read.");
+  assert.equal(alertItem(signal, exts, "Visual Studio Code", "linux")!.title, "node-update tried to kill keepassxc - blocked");
+  assert.equal(alertItem(signal, exts, "Visual Studio Code", "linux")!.label, "BLOCKED");
+  assert.equal(alertItem({ ...signal, paused: true }, exts, "Visual Studio Code", "linux")!.label, "WOULD BE BLOCKED");
+  for (const platform of ["win32", "darwin", "windows", "macos"]) {
+    const d = alertItem(denied, exts, "Visual Studio Code", platform)!;
+    assert.equal(d.label, "STOPPED", platform);
+    assert.equal(d.detail, "antitheft stopped the program when it reached for it.", platform);
+    const sg = alertItem(signal, exts, "Visual Studio Code", platform)!;
+    assert.equal(sg.title, "node-update tried to kill keepassxc - stopped", platform);
+    assert.equal(sg.label, "STOPPED", platform);
+    const paused = alertItem({ ...denied, paused: true }, exts, "Visual Studio Code", platform)!;
+    assert.equal(paused.label, "WOULD BE STOPPED", platform);
+    assert.equal(paused.detail, "Protection was paused, so nothing was stopped.", platform);
+    assert.equal(alertItem({ ...signal, paused: true }, exts, "Visual Studio Code", platform)!.title, "node-update tried to kill keepassxc - would be stopped", platform);
+    for (const i of [d, sg, paused]) assert.doesNotMatch(`${i.title} ${i.detail} ${i.label}`, /block|refus|denied|lock/i, platform);
+  }
+  // the guard's own refusal inside the editor is a real refusal on every system
+  assert.equal(eventItem(blocked, exts)!.label, "BLOCKED");
+});
+
 test("launches are activity, not alerts; newest first", () => {
-  const items = feed([blocked, spawn], [beacon], exts, "Visual Studio Code");
+  const items = feed([blocked, spawn], [beacon], exts, "Visual Studio Code", "linux");
   assert.deepEqual(items.map((i) => i.label), ["STOPPED", "STARTED", "BLOCKED"]);
   assert.equal(items.find((i) => i.label === "STARTED")!.title, "solidity-snippets-pro started node-update");
   assert.equal(items.filter((i) => i.needsYou).length, 2);
