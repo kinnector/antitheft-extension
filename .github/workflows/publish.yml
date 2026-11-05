@@ -86,10 +86,12 @@ jobs:
         working-directory: jetbrains
         env:
           JDK21: ${{ steps.jdk21.outputs.path }}
+        # The guard's test first: it builds its own agent into build/ (build.sh --agent wipes that folder), so the
+        # two release builds after it leave build/antitheft.zip and build-store/antitheft.zip in place.
         run: |
+          JDK25="$IDE_HOME/jbr" sh test/agent.sh
           sh build.sh
           sh build.sh --store
-          JDK25="$IDE_HOME/jbr" sh test/agent.sh
 
       - name: Release files
         env:
