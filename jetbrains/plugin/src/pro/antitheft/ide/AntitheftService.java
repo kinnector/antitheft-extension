@@ -481,8 +481,9 @@ public final class AntitheftService implements Disposable {
                 kept.addAll(keys);
                 com.intellij.ide.util.PropertiesComponent.getInstance().setList(REVIEWED, kept.subList(Math.max(0, kept.size() - 500), kept.size()));
             }
-            if (ids.size() == 1) Daemon.request("POST", "/api/v1/alerts/" + ids.get(0) + "/reviewed", null);
-            else if (!ids.isEmpty()) Daemon.request("POST", "/api/v1/alerts/reviewed", gson.toJson(Map.of("ids", ids)));
+            // this IDE's own view only: the antitheft app keeps its own reviewed state
+            String id = ideId;
+            if (id != null && !ids.isEmpty()) Daemon.request("POST", "/api/v1/ide/reviewed", gson.toJson(Map.of("ide_id", id, "ids", ids)));
             refresh();
         });
     }

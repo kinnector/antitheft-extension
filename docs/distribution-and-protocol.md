@@ -54,6 +54,10 @@ antitheft writes the extension onto its alerts.
 
 - The vault list comes from `/api/v1/ide/vaults` (names, states, the week's opens; no path), re-read on connect, a
   change of standing and alerts, at most every 20 s. Never `/api/v1/software` (it carries paths).
+- The editor sees and counts only its own alerts and events (`/api/v1/ide/events`). REVIEWED goes to
+  `POST /api/v1/ide/reviewed {ide_id, ids}` and marks them in this editor's own view only; `POST /api/v1/ide/clear
+  {ide_id}` clears that view. The antitheft app's alert list (`/api/v1/alerts/reviewed`, `/api/v1/alerts/clear`)
+  answers only the app.
 - Icons from antitheft are JSON (`{content_type, data_base64}`, PNG or SVG; `daemon/client.ts` `imageData`).
 
 ## ACP agents behind the bridge (JetBrains)

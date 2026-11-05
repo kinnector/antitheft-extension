@@ -174,14 +174,14 @@ export class Views implements vscode.Disposable, vscode.WebviewViewProvider {
     }
   }
 
-  /** Mark alerts reviewed in antitheft (the app sees it too) and the editor's own refusals here, then redraw. */
+  /** Mark alerts reviewed in this editor's own view in antitheft (the app keeps its own) and the editor's own refusals here, then redraw. */
   private async review(alertIds: number[], keys: string[]): Promise<void> {
     if (keys.length) {
       const kept = (this.context.globalState.get<string[]>(DISMISSED_KEY) ?? []).filter((k) => !keys.includes(k));
       await this.context.globalState.update(DISMISSED_KEY, [...kept, ...keys].slice(-MAX_DISMISSED));
     }
-    if (alertIds.length === 1) await request("POST", `/api/v1/alerts/${alertIds[0]}/reviewed`);
-    else if (alertIds.length) await request("POST", "/api/v1/alerts/reviewed", { ids: alertIds });
+    const ideId = this.session.ideId;
+    if (ideId && alertIds.length) await request("POST", "/api/v1/ide/reviewed", { ide_id: ideId, ids: alertIds });
     if (alertIds.length) await this.session.refresh();
     this.post();
   }
