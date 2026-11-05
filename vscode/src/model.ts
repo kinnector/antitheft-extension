@@ -197,8 +197,21 @@ function otherTitle(a: AlertEntry, actor: string): { title: string; target: stri
       const whom = d.sender_pid !== undefined && d.sender_pid === d.target_pid ? "itself" : text("sender_image_path") && text("sender_image_path") === text("target_image_path") ? `another ${target} process` : target;
       return tried(SIGNAL_VERBS[sig] ? `${SIGNAL_VERBS[sig]} ${whom}` : `send signal ${sig} to ${whom}`, d.blocked === true, text("target_image_path"));
     }
-    case "ptrace_blocked":
-      return tried(d.attach === true ? "debug a protected app" : "read a protected app's memory", true);
+    case "ptrace_blocked": {
+      const app = text("target_image_path") ? basename(text("target_image_path")) : "a protected app";
+      return tried(`read ${app}'s memory`, true, text("target_image_path"));
+    }
+    case "mass_delete": {
+      const t = text("target");
+      const what = t === "/" ? "everything on this computer" : t === "/*" ? "most of this computer's files" : t.endsWith("/*") ? `most of ${t.slice(0, -2)}` : t === "/home" ? "every home folder" : t.replace(/\/+$/, "");
+      const ended = d.ended === true;
+      return { title: `${actor} tried to delete ${what} - ${ended ? "stopped" : a.paused ? "would be stopped" : "seen"}`, target: t, severity: ended ? "blocked" : "critical" };
+    }
+    case "process_injected": {
+      const target = text("target_image_path") ? basename(text("target_image_path")).replace(/\.exe$/i, "") : "another program";
+      const ended = d.target_ended === true || d.caller_ended === true;
+      return { title: `${actor} tried to run its code inside ${target} - ${ended ? "stopped" : a.paused ? "would be stopped" : "seen"}`, target: text("target_image_path"), severity: ended ? "blocked" : "critical" };
+    }
     case "self_exec_denied":
       return tried("run code from memory", true);
     case "rename_denied":

@@ -176,8 +176,27 @@ final class Model {
                 String verb = SIGNAL_VERBS.get(sig);
                 return tried.apply(verb != null ? verb + " " + target : "send signal " + sig + " to " + target, d.has("blocked") && d.get("blocked").getAsBoolean());
             }
-            case "ptrace_blocked":
-                return tried.apply(d.has("attach") && d.get("attach").getAsBoolean() ? "debug a protected app" : "read a protected app's memory", true);
+            case "ptrace_blocked": {
+                String app = file.apply("target_image_path").isEmpty() ? "a protected app" : file.apply("target_image_path");
+                String[] t = tried.apply("read " + app + "'s memory", true);
+                t[1] = text.apply("target_image_path");
+                return t;
+            }
+            case "mass_delete": {
+                String t = text.apply("target");
+                String what = "/".equals(t) ? "everything on this computer"
+                    : "/*".equals(t) ? "most of this computer's files"
+                    : t.endsWith("/*") ? "most of " + t.substring(0, t.length() - 2)
+                    : "/home".equals(t) ? "every home folder"
+                    : t.replaceAll("/+$", "");
+                boolean ended = d.has("ended") && d.get("ended").getAsBoolean();
+                return new String[] {actor + " tried to delete " + what + " - " + (ended ? "stopped" : paused ? "would be stopped" : "seen"), t, ended ? "blocked" : "critical"};
+            }
+            case "process_injected": {
+                String target = file.apply("target_image_path").isEmpty() ? "another program" : file.apply("target_image_path").replaceAll("(?i)\\.exe$", "");
+                boolean ended = (d.has("target_ended") && d.get("target_ended").getAsBoolean()) || (d.has("caller_ended") && d.get("caller_ended").getAsBoolean());
+                return new String[] {actor + " tried to run its code inside " + target + " - " + (ended ? "stopped" : paused ? "would be stopped" : "seen"), text.apply("target_image_path"), ended ? "blocked" : "critical"};
+            }
             case "self_exec_denied":
                 return tried.apply("run code from memory", true);
             case "rename_denied":
