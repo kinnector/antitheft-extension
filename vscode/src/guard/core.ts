@@ -17,7 +17,7 @@
 
 import * as path from "path";
 import type { Matcher } from "./matcher";
-import { pathOf, pathsIn, uriPathsIn } from "./matcher";
+import { pathCandidates, pathOf, uriPathsIn } from "./matcher";
 import type { Culprit } from "./culprit";
 import { commandLine } from "../commandLine";
 
@@ -220,7 +220,7 @@ export function installGuard(o: GuardOptions): Installed {
     const words = [file, ...args.slice(1)];
     for (const w of words) {
       if (typeof w !== "string") continue;
-      for (const p of pathsIn(w, windows, o.home)) {
+      for (const p of pathCandidates(w, windows, o.home)) {
         const abs = cwd && !path.isAbsolute(p) ? path.resolve(cwd, p) : p;
         if (o.matcher.isProtected(abs)) return abs;
       }

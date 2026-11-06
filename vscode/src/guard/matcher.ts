@@ -145,6 +145,25 @@ export function pathOf(arg: unknown): string | null {
   return null;
 }
 
+/** One word as a path (`~`, a `file://` URI, an absolute or drive path, anything with a separator), or null. */
+function asPath(word: string, windows: boolean, home: string): string | null {
+  let w = word;
+  if (!w) return null;
+  if (w.startsWith("file://")) {
+    try {
+      w = decodeURIComponent(w.slice(7));
+      if (windows && /^\/[a-zA-Z]:/.test(w)) w = w.slice(1);
+    } catch {
+      return null;
+    }
+  }
+  if (w.startsWith("~/") || w === "~") return home + w.slice(1);
+  if (w.startsWith("/")) return windows && /^\/[a-zA-Z]:/.test(w) ? w.slice(1) : w;
+  if (windows && /^[a-zA-Z]:[\\/]/.test(w)) return w;
+  if (/[\\/]/.test(w)) return w;
+  return null;
+}
+
 /**
  * Path-like words in a command line or a JSON message: absolute paths, home-relative ones, Windows drive
  * paths, and file: URLs. Used where a vault path may hide inside a longer string (a shell command, an
@@ -152,23 +171,40 @@ export function pathOf(arg: unknown): string | null {
  */
 export function pathsIn(text: string, windows: boolean, home: string): string[] {
   const out: string[] = [];
-  const words = text.split(/[\s"'`;|&<>()=,]+/);
-  for (let w of words) {
-    if (!w) continue;
-    if (w.startsWith("file://")) {
-      try {
-        w = decodeURIComponent(w.slice(7));
-        if (windows && /^\/[a-zA-Z]:/.test(w)) w = w.slice(1);
-      } catch {
-        continue;
-      }
-    }
-    if (w.startsWith("~/") || w === "~") out.push(home + w.slice(1));
-    else if (w.startsWith("/")) out.push(windows && /^\/[a-zA-Z]:/.test(w) ? w.slice(1) : w);
-    else if (windows && /^[a-zA-Z]:[\\/]/.test(w)) out.push(w);
-    else if (/[\\/]/.test(w)) out.push(w);
+  for (const w of text.split(/[\s"'`;|&<>()=,]+/)) {
+    const p = asPath(w, windows, home);
+    if (p !== null) out.push(p);
   }
   return out;
+}
+
+/** The longest run of words joined back into one path: a folder name may hold up to this many spaces. */
+const MAX_SPACED_WORDS = 8;
+
+/**
+ * Every path a launch's word may name, for a launch check: `pathsIn`'s, plus the paths with spaces it cuts apart
+ * (a browser's `User Data` folder, macOS's `Application Support`): the whole word, each quoted part, and each run of
+ * words that starts like a path, joined back with spaces. A run only ever adds a longer path that starts where a
+ * shorter one did, so it finds a vault the pieces missed and nothing the matcher would not find in the whole path.
+ */
+export function pathCandidates(text: string, windows: boolean, home: string): string[] {
+  const out = new Set(pathsIn(text, windows, home));
+  const add = (w: string) => {
+    const p = asPath(w.trim(), windows, home);
+    if (p !== null) out.add(p);
+  };
+  add(text.replace(/^["']|["']$/g, ""));
+  for (const m of text.matchAll(/"([^"]+)"|'([^']+)'/g)) add(m[1] ?? m[2] ?? "");
+  const words = text.split(/\s+/).map((w) => w.replace(/^["'`(]+|["'`);|&,]+$/g, ""));
+  for (let i = 0; i < words.length; i++) {
+    if (asPath(words[i], windows, home) === null) continue;
+    let run = words[i];
+    for (let j = i + 1; j < words.length && j < i + MAX_SPACED_WORDS; j++) {
+      run += ` ${words[j]}`;
+      add(run);
+    }
+  }
+  return [...out];
 }
 
 /** The `path` / `fsPath` / `external` fields of every URI in a serialized request (VS Code's RPC). */

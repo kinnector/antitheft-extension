@@ -52,6 +52,16 @@ public final class AgentTest {
         refused("Files.move", () -> Files.move(secret.toPath(), new File(dir, "moved").toPath()));
         refused("ProcessBuilder.start", () -> (windows ? new ProcessBuilder("cmd.exe", "/c", "type " + secret.getPath()) : new ProcessBuilder("sh", "-c", "cat " + secret.getPath())).start().waitFor());
 
+        // a vault whose path holds a space (a browser's "User Data"): named whole, and inside a shell line
+        File spaced = new File(dir, "User Data");
+        File spacedSecret = new File(spaced, "Login Data");
+        spaced.mkdirs();
+        Files.writeString(spacedSecret.toPath(), "decoy");
+        update.invoke(null, salt, new String[] {hash(salt, vault.getPath()), hash(salt, spaced.getPath())}, new String[0]);
+        refused("ProcessBuilder.start, a path with a space as one argument", () -> (windows ? new ProcessBuilder("cmd.exe", "/c", "type", spacedSecret.getPath()) : new ProcessBuilder("cat", spacedSecret.getPath())).start().waitFor());
+        refused("ProcessBuilder.start, a quoted path with a space in a shell line", () -> (windows ? new ProcessBuilder("cmd.exe", "/c", "type \"" + spacedSecret.getPath() + "\"") : new ProcessBuilder("sh", "-c", "cat '" + spacedSecret.getPath() + "'")).start().waitFor());
+        allowed("a neighbour of a spaced vault", () -> (windows ? new ProcessBuilder("cmd.exe", "/c", "echo", new File(dir, "User Datum").getPath()) : new ProcessBuilder("echo", new File(dir, "User Datum").getPath())).start().waitFor());
+
         allowed("an ordinary file", () -> Files.readAllBytes(other.toPath()));
         allowed("an ordinary FileInputStream", () -> new FileInputStream(other).close());
         allowed("an ordinary launch", () -> (windows ? new ProcessBuilder("cmd.exe", "/c", "echo ok") : new ProcessBuilder("true")).start().waitFor());
