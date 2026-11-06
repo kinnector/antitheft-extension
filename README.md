@@ -28,8 +28,12 @@ The screenshots show demo data ("Claude Code Assistant" is a made-up lookalike e
 
 | Editor | Folder |
 | --- | --- |
-| Visual Studio Code, Cursor, Windsurf, VSCodium | [`vscode/`](vscode/) |
+| Visual Studio Code, Cursor, Windsurf, VSCodium, Antigravity | [`vscode/`](vscode/) |
 | IntelliJ IDEA, PyCharm, WebStorm, GoLand and the other JetBrains IDEs | [`jetbrains/`](jetbrains/) |
+
+Get it from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=kinnector.antitheft)
+(VS Code) or [Open VSX](https://open-vsx.org/extension/kinnector/antitheft) (Cursor, Windsurf, VSCodium, Antigravity),
+or let antitheft install it into every editor it finds (Settings, Editors, CONNECT).
 
 ## How it works
 
